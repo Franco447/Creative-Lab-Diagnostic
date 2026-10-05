@@ -50,36 +50,44 @@ Dimension scores:
 ${Object.entries(diagnostic.dimensions || {}).map(([k,v]) => `- ${k}: ${v}/100`).join("\n")}
 
 Individual answers:
-${diagnostic.answers.map(a => `- ${a.dimension} | ${a.question} | ${a.score}/9`).join("\n")}
+${diagnostic.answers.map(a => `- ${a.dimension} | ${a.question} | ${a.score}/9 | weighting ${a.weighting}`).join("\n")}
 
 TASK
 Use web search to review the company's own website and understand only the public business context that can be supported by that website: what it offers, category, audience, positioning, commercial model where evident, and relevant proof points or claims.
 
 Then interpret the diagnostic specifically for this company.
 
-The score engine has already calculated the diagnosis. Do not recalculate scores.
+The score engine has already calculated the diagnosis using weighted question scoring. Do not recalculate scores. Use the weightings only as context for how much emphasis each question carries.
 
-Write concise client-facing copy under exactly these headings:
+WRITE A CONCISE CLIENT EMAIL REPORT.
+
+Target length: 320–420 words total.
+
+Use exactly these headings:
 WHAT YOUR SCORE MEANS
 WHAT STANDS OUT
-THE BIGGEST CONSTRAINT
-WHERE TO FOCUS NEXT
 THE FIVE AREAS
+WHERE TO FOCUS NEXT
 
-Under THE FIVE AREAS, give a short paragraph for each:
+Under THE FIVE AREAS, include each of these five subheadings exactly once:
 Strategic Fitness
 Consumer Intelligence
 Market Influence
 Growth Engine
 Commercial Endurance
 
+For each area, write only 1–2 concise sentences. The purpose is to give useful high-level interpretation, not the full consultancy answer.
+
 Rules:
+- Reference the overall score naturally.
 - Make the interpretation specific to this business, not generic.
-- Use the relationship between the 20 answers, the five scores and verified website context.
+- Use the relationship between the 20 answers, five scores and verified website context.
+- Explain meaningful tensions between answers where they help the client understand the result.
+- The five-area breakdown should interpret, not simply restate scores.
+- Keep enough depth back for a follow-up meeting.
 - Distinguish evidence from inference.
 - Do not invent facts, market conditions, competitors, customer behaviour, subscription economics or business-model details that are not supported by the website or diagnostic.
-- If something is plausible but not evidenced, do not state it as fact.
-- Do not simply repeat scores in prose.
+- Do not simply repeat all scores in prose.
 - Be commercially intelligent, direct and constructive.
 - Avoid consultancy jargon, generic encouragement, inflated language and obvious AI phrasing.
 - No markdown tables.
@@ -99,7 +107,8 @@ Rules:
           filters: { allowed_domains: [domain] },
           search_context_size: "medium"
         }],
-        input: prompt
+        input: prompt,
+        max_output_tokens: 850
       })
     });
 
