@@ -93,31 +93,31 @@
 (() => {
   const app = document.getElementById('app');
   const dims = [
-    {name:'Strategic Fitness',bg:'#E6D8C7',bar:'#E6D8C7',qs:[
+    {name:'Strategic Fitness',bg:'#E6D8C7',bar:'#E6D8C7',weights:[7, 6, 8, 6],qs:[
       'We have a clearly defined growth ambition for the next 24 months.',
       'Everyone in our business understands what our brand stands for.',
       'Our positioning is distinct enough to command attention in a crowded category.',
       'We have a clear plan for how the brand will help deliver that growth.'
     ]},
-    {name:'Consumer Intelligence',bg:'#CBCFC6',bar:'#A8AEA0',qs:[
+    {name:'Consumer Intelligence',bg:'#CBCFC6',bar:'#A8AEA0',weights:[6, 4, 6, 5],qs:[
       "We have a deep understanding of our audience's motivations and behaviours.",
       'We regularly gather and apply consumer insight to decision-making.',
       'We know exactly why customers choose us over competitors.',
       'We understand the biggest barriers preventing trial and adoption.'
     ]},
-    {name:'Market Influence',bg:'#C4B8BD',bar:'#6B4D59',qs:[
+    {name:'Market Influence',bg:'#C4B8BD',bar:'#6B4D59',weights:[5, 6, 5, 4],qs:[
       'Our brand has a clear and credible voice within the wellness category.',
       'Our communications consistently build trust and authority.',
       'Our content drives meaningful engagement rather than simply generating impressions.',
       'We are confident our messaging cuts through category noise.'
     ]},
-    {name:'Growth Engine',bg:'#F5F0E8',bar:'#E5DFD3',qs:[
+    {name:'Growth Engine',bg:'#F5F0E8',bar:'#E5DFD3',weights:[5, 5, 5, 4],qs:[
       'We have systems in place to consistently generate demand.',
       'Our marketing activity is directly linked to measurable business outcomes.',
       'We know which channels create the highest commercial return.',
       'We have a scalable customer acquisition strategy.'
     ]},
-    {name:'Commercial Endurance',bg:'#DBDED8',bar:'#707070',qs:[
+    {name:'Commercial Endurance',bg:'#DBDED8',bar:'#707070',weights:[4, 3, 3, 3],qs:[
       'We retain customers effectively and continue to grow their value over time.',
       'We use commercial performance data to make better decisions.',
       'We know where growth is currently being constrained.',
@@ -197,8 +197,22 @@
   }
 
   function calc(){
-    const ds=dims.map((_,i)=>Math.round(answers.slice(i*4,i*4+4).reduce((a,b)=>a+b,0)/36*100));
-    return {overall:Math.round(answers.reduce((a,b)=>a+b,0)/180*100),ds};
+    // Weighted scoring methodology:
+    // Each answer (0–9) is multiplied by its question weighting.
+    // Each dimension is converted to /100 using that dimension's weighted maximum.
+    // All question weightings total 100, so the overall weighted maximum is 900.
+    const ds=dims.map((d,i)=>{
+      const scores=answers.slice(i*4,i*4+4);
+      const weighted=scores.reduce((sum,score,j)=>sum+(score*d.weights[j]),0);
+      const max=d.weights.reduce((sum,w)=>sum+w,0)*9;
+      return Math.round((weighted/max)*100);
+    });
+
+    const allWeights=dims.flatMap(d=>d.weights);
+    const weightedTotal=answers.reduce((sum,score,i)=>sum+(score*allWeights[i]),0);
+    const overallMax=allWeights.reduce((sum,w)=>sum+w,0)*9;
+
+    return {overall:Math.round((weightedTotal/overallMax)*100),ds};
   }
 
   function interpret(overall, ds){
@@ -307,7 +321,8 @@
         answers:dims.flatMap((d,di)=>d.qs.map((question,qi)=>({
           dimension:d.name,
           question,
-          score:answers[di*4+qi]
+          score:answers[di*4+qi],
+          weighting:d.weights[qi]
         })))
       }
     };
