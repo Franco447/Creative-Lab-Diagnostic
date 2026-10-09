@@ -430,7 +430,7 @@
       line-height:1.5;
     }
 
-    /* SCORE PANEL — TIGHTER XD MATCH */
+    /* SCORE PANEL — AMENDED TO MATCH XD REFERENCE */
 
     .score-panel{
       background:#A8AEA0;
@@ -1334,7 +1334,7 @@
 
             <div style="
               display:grid;
-              grid-template-columns:72px 1fr;
+              grid-template-columns:82px 1fr;
               gap:18px;
               align-items:start;
               padding:22px 0;
@@ -1342,8 +1342,8 @@
             ">
 
               <div style="
-                width:58px;
-                height:58px;
+                width:64px;
+                height:64px;
                 border-radius:50%;
                 background:${item.colour};
                 display:flex;
@@ -1354,7 +1354,7 @@
               ">
 
                 <strong style="
-                  font-size:21px;
+                  font-size:23px;
                   line-height:1;
                 ">
                   ${item.score}
@@ -1833,36 +1833,27 @@
 
   function render(){
 
-    app.classList.remove(
-      'email-mode'
-    );
+    app.classList.remove('email-mode');
 
     if(state==='splash'){
-
       renderSplash();
 
     }else if(state==='intro'){
-
       renderIntro();
 
     }else if(state==='about'){
-
       renderAbout();
 
     }else if(state==='questions'){
-
       renderQuestions();
 
     }else if(state==='result'){
-
       renderResult();
 
     }else if(state==='email'){
-
       renderEmailPreview();
 
     }else{
-
       renderDone();
     }
   }
