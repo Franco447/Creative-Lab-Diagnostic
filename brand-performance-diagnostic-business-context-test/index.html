@@ -550,21 +550,32 @@
 
     <div>
       <div style="
-        font-size:15px;
-        line-height:1.2;
-        font-weight:700;
-        margin-bottom:7px;
-      ">
-        ${item.name}
-      </div>
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+  gap:6px;
+">
 
-      <div style="
-        font-size:14px;
-        line-height:1.5;
-      ">
-        ${escapeHtml(item.text || "")}
-      </div>
-    </div>
+  <div style="
+    font-size:15px;
+    line-height:1.2;
+    font-weight:700;
+    margin:0;
+    padding:0;
+  ">
+    ${item.name}
+  </div>
+
+  <div style="
+    font-size:14px;
+    line-height:1.5;
+    margin:0;
+    padding:0;
+  ">
+    ${escapeHtml(item.text || "")}
+  </div>
+
+</div>
 
   </div>
 `).join("")}
