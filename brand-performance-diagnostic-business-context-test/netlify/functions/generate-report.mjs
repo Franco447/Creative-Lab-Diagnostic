@@ -102,11 +102,20 @@ For each of the five areas, consider:
 - the weakest response in that area
 - any tension or contradiction between the responses
 - relevant verified website context
-- the likely commercial implication of that pattern
+- the likely implication of that pattern, only where directly supported by the diagnostic or verified website evidence
 
 Every area commentary must contain at least one observation that could only have come from this client's individual responses or verified business context.
 
 Two clients with the same area score should be capable of receiving materially different commentary.
+
+Prefer describing the tension revealed by the responses over naming or labelling the pattern.
+
+Do not invent diagnostic labels such as:
+
+- "brand-light"
+- "performance-led"
+- "strategy-light"
+- or similar shorthand labels unless those exact terms are explicitly evidenced.
 
 REPORT STRUCTURE
 
@@ -189,6 +198,36 @@ When interpreting the overall pattern, use this order:
 4. Strong commercial engine but weak strategic or brand foundations.
 
 5. Relatively flat profile — describe the overall level rather than inventing a dramatic weakness.
+
+EVIDENCE DISCIPLINE
+
+Do not extend a diagnostic observation into a commercial consequence unless that consequence is directly supported by the answers or verified website evidence.
+
+Avoid speculative claims such as:
+
+- "this will..."
+- "this means..."
+- "this puts X at risk..."
+- "this makes it harder to..."
+- "this will cap growth..."
+- "this will weaken pricing power..."
+- "this creates reliance on direct selling..."
+- or similar causal claims unless directly evidenced.
+
+Do not make unsupported assumptions about:
+
+- sales behaviour
+- pricing
+- retention
+- acquisition
+- pipeline
+- customer loyalty
+- commercial model
+- internal capability
+- market position
+- competitor behaviour
+
+If the evidence only supports a tension or gap, describe the tension or gap and stop there.
 
 RULES
 
