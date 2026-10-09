@@ -169,22 +169,6 @@ Keep these high level and commercially useful.
 
 Do not turn this into a consultancy plan.
 
-NOW, NEXT AND NURTURE
-
-Maximum 45 words.
-
-Use this only as a bridge to a follow-up conversation.
-
-Do not prescribe the pathway in detail.
-
-Explain that the findings can be translated into:
-
-Now — immediate priorities
-
-Next — what should follow
-
-Nurture — what needs to be strengthened over time
-
 DIAGNOSTIC PRECEDENCE
 
 When interpreting the overall pattern, use this order:
