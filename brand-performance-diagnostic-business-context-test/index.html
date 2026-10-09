@@ -4,218 +4,705 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Brand Performance Diagnostic</title>
+
   <style>
     :root{
-      --grey:#707070; --light-grey:#E4E4E4; --sand:#E5DFD3; --charcoal:#343434;
-      --cream:#F5F0E8; --plum:#6B4D59; --warm:#E6D8C7; --sage:#A8AEA0;
+      --grey:#707070;
+      --light-grey:#E4E4E4;
+      --sand:#E5DFD3;
+      --charcoal:#343434;
+      --cream:#F5F0E8;
+      --plum:#6B4D59;
+      --warm:#E6D8C7;
+      --sage:#A8AEA0;
     }
-    *{box-sizing:border-box}
-    html,body{margin:0;background:#fff;color:var(--charcoal);font-family:"Gramatika",Arial,sans-serif}
-    button,input{font:inherit}
-    .app{max-width:430px;margin:0 auto;min-height:100vh;background:var(--sand)}
+
+    *{
+      box-sizing:border-box;
+    }
+
+    html,
+    body{
+      margin:0;
+      background:#fff;
+      color:var(--charcoal);
+      font-family:"Gramatika",Arial,sans-serif;
+    }
+
+    button,
+    input{
+      font:inherit;
+    }
+
+    .app{
+      max-width:430px;
+      margin:0 auto;
+      min-height:100vh;
+      background:var(--sand);
+    }
+
     .app.email-mode{
       max-width:640px;
     }
-    .header{height:82px;background:#fff;display:flex;align-items:center;justify-content:center}
-    .header img{width:145px;max-width:145px;height:auto;display:block}
-    .screen{min-height:100vh;background:var(--sand)}
-    .body{padding:34px 28px 30px}
-    h1{font-size:32px;line-height:.94;font-weight:900;letter-spacing:-.03em;margin:0 0 40px}
-    h2{font-size:29px;line-height:1.05;font-weight:900;letter-spacing:-.025em;margin:0 0 28px}
-    p{font-size:15px;line-height:1.5;margin:0 0 24px}
-    .dims{margin:0 0 28px;font-size:14px;line-height:1.6;font-weight:700}
-    .field-label{font-size:14px;font-weight:700;margin:30px 0 10px}
-    input{width:100%;height:44px;border:0;border-radius:4px;background:var(--cream);padding:0 12px;font-size:16px;color:var(--charcoal)}
-    input:focus{outline:2px solid var(--sage);outline-offset:1px}
-    .primary{display:block;width:72%;min-height:44px;margin:20px auto 0;border:0;border-radius:3px;background:var(--plum);color:#fff;font-size:17px;font-weight:700;cursor:pointer}
-    .primary:focus-visible,.score:focus-visible{outline:3px solid #fff;outline-offset:3px}
-    .splash{min-height:100vh;background:var(--sage);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px}
-    .splash img{width:298px;max-width:76%;height:auto}
-    .splash .primary{width:78%;margin-top:38px}
-    .card{background:#FFFFFF;border-radius:12px;padding:24px 20px}
-    .about .field{margin-bottom:22px}
-    .about .field:last-child{margin-bottom:0}
-    .about label{display:block;font-size:13px;font-weight:700;margin-bottom:8px}
-    .about input{background:#FFFFFF;border:1px solid var(--light-grey)}
-    .helper{font-size:11px;color:var(--grey);margin-bottom:24px}
-    .question{margin-bottom:28px}
-    .qtext{font-size:13.5px;line-height:1.35;font-weight:700;margin-bottom:10px}
-    .scale-labels,.scale-btns{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;text-align:center}
-    .scale-labels{font-size:10px;margin-bottom:4px}
-    .score{width:22px;height:22px;border-radius:50%;border:1.2px solid var(--grey);background:transparent;margin:auto;cursor:pointer;padding:0}
-    .score.selected{background:var(--plum);border-color:var(--plum);box-shadow:inset 0 0 0 4px #FFFFFF}
-    .footer{background:#fff;min-height:58px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--grey)}
-    .error{font-size:12px;color:var(--plum);margin-top:10px}
-    .result-label{font-size:12px;color:var(--grey);text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:12px}
-    .scoreline{font-size:13px;margin-bottom:8px}
-    .result-score{font-size:78px;line-height:.9;font-weight:900;letter-spacing:-.05em;margin:10px 0 16px}
-    .result-score small{font-size:25px;font-weight:400;letter-spacing:0}
-    .result-summary{font-size:20px;font-weight:700;line-height:1.25;margin-bottom:26px}
-    .result-card{background:#FFFFFF;border-radius:12px;padding:14px 16px;margin-bottom:24px}
-    .result-row{padding:10px 0;border-bottom:1px solid var(--light-grey)}
-    .result-row:last-child{border-bottom:0}
-    .result-top{display:flex;justify-content:space-between;gap:10px;font-size:13px;font-weight:700;margin-bottom:6px}
-    .bar{height:8px;background:#E4E4E4;border:none;outline:none;box-shadow:none;border-radius:8px;overflow:hidden}
-    .bar span{display:block;height:100%;background:var(--sage);border:none;outline:none;box-shadow:none}
-    .thankyou{background:var(--sage);min-height:100vh;padding:90px 38px 50px;text-align:center;display:flex;flex-direction:column;align-items:center}
-    .thankyou h1{font-size:42px;line-height:1;margin:0 0 34px}
-    .thankyou p{font-size:23px;line-height:1.35;margin-bottom:26px;font-weight:300}
-    .thankyou img{width:150px;max-width:52%;margin-top:auto}
-    .restart{margin-top:18px;background:transparent;border:0;text-decoration:underline;color:var(--charcoal);cursor:pointer}
+
+    .header{
+      height:82px;
+      background:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .header img{
+      width:145px;
+      max-width:145px;
+      height:auto;
+      display:block;
+    }
+
+    .screen{
+      min-height:100vh;
+      background:var(--sand);
+    }
+
+    .body{
+      padding:34px 28px 30px;
+    }
+
+    h1{
+      font-size:32px;
+      line-height:.94;
+      font-weight:900;
+      letter-spacing:-.03em;
+      margin:0 0 40px;
+    }
+
+    h2{
+      font-size:29px;
+      line-height:1.05;
+      font-weight:900;
+      letter-spacing:-.025em;
+      margin:0 0 28px;
+    }
+
+    p{
+      font-size:15px;
+      line-height:1.5;
+      margin:0 0 24px;
+    }
+
+    .dims{
+      margin:0 0 28px;
+      font-size:14px;
+      line-height:1.6;
+      font-weight:700;
+    }
+
+    .field-label{
+      font-size:14px;
+      font-weight:700;
+      margin:30px 0 10px;
+    }
+
+    input{
+      width:100%;
+      height:44px;
+      border:0;
+      border-radius:4px;
+      background:var(--cream);
+      padding:0 12px;
+      font-size:16px;
+      color:var(--charcoal);
+    }
+
+    input:focus{
+      outline:2px solid var(--sage);
+      outline-offset:1px;
+    }
+
+    .primary{
+      display:block;
+      width:72%;
+      min-height:44px;
+      margin:20px auto 0;
+      border:0;
+      border-radius:3px;
+      background:var(--plum);
+      color:#fff;
+      font-size:17px;
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    .primary:focus-visible,
+    .score:focus-visible{
+      outline:3px solid #fff;
+      outline-offset:3px;
+    }
+
+    .splash{
+      min-height:100vh;
+      background:var(--sage);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:40px;
+    }
+
+    .splash img{
+      width:298px;
+      max-width:76%;
+      height:auto;
+    }
+
+    .splash .primary{
+      width:78%;
+      margin-top:38px;
+    }
+
+    .card{
+      background:#FFFFFF;
+      border-radius:12px;
+      padding:24px 20px;
+    }
+
+    .about .field{
+      margin-bottom:22px;
+    }
+
+    .about .field:last-child{
+      margin-bottom:0;
+    }
+
+    .about label{
+      display:block;
+      font-size:13px;
+      font-weight:700;
+      margin-bottom:8px;
+    }
+
+    .about input{
+      background:#FFFFFF;
+      border:1px solid var(--light-grey);
+    }
+
+    .helper{
+      font-size:11px;
+      color:var(--grey);
+      margin-bottom:24px;
+    }
+
+    .question{
+      margin-bottom:28px;
+    }
+
+    .qtext{
+      font-size:13.5px;
+      line-height:1.35;
+      font-weight:700;
+      margin-bottom:10px;
+    }
+
+    .scale-labels,
+    .scale-btns{
+      display:grid;
+      grid-template-columns:repeat(10,1fr);
+      gap:5px;
+      text-align:center;
+    }
+
+    .scale-labels{
+      font-size:10px;
+      margin-bottom:4px;
+    }
+
+    .score{
+      width:22px;
+      height:22px;
+      border-radius:50%;
+      border:1.2px solid var(--grey);
+      background:transparent;
+      margin:auto;
+      cursor:pointer;
+      padding:0;
+    }
+
+    .score.selected{
+      background:var(--plum);
+      border-color:var(--plum);
+      box-shadow:inset 0 0 0 4px #FFFFFF;
+    }
+
+    .footer{
+      background:#fff;
+      min-height:58px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:11px;
+      color:var(--grey);
+    }
+
+    .error{
+      font-size:12px;
+      color:var(--plum);
+      margin-top:10px;
+    }
+
+    .result-label{
+      font-size:12px;
+      color:var(--grey);
+      text-transform:uppercase;
+      letter-spacing:.1em;
+      font-weight:700;
+      margin-bottom:12px;
+    }
+
+    .scoreline{
+      font-size:13px;
+      margin-bottom:8px;
+    }
+
+    .result-score{
+      font-size:78px;
+      line-height:.9;
+      font-weight:900;
+      letter-spacing:-.05em;
+      margin:10px 0 16px;
+    }
+
+    .result-score small{
+      font-size:25px;
+      font-weight:400;
+      letter-spacing:0;
+    }
+
+    .result-summary{
+      font-size:20px;
+      font-weight:700;
+      line-height:1.25;
+      margin-bottom:26px;
+    }
+
+    .result-card{
+      background:#FFFFFF;
+      border-radius:12px;
+      padding:14px 16px;
+      margin-bottom:24px;
+    }
+
+    .result-row{
+      padding:10px 0;
+      border-bottom:1px solid var(--light-grey);
+    }
+
+    .result-row:last-child{
+      border-bottom:0;
+    }
+
+    .result-top{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-size:13px;
+      font-weight:700;
+      margin-bottom:6px;
+    }
+
+    .bar{
+      height:8px;
+      background:#E4E4E4;
+      border:none;
+      outline:none;
+      box-shadow:none;
+      border-radius:8px;
+      overflow:hidden;
+    }
+
+    .bar span{
+      display:block;
+      height:100%;
+      border:none;
+      outline:none;
+      box-shadow:none;
+    }
+
+    .thankyou{
+      background:var(--sage);
+      min-height:100vh;
+      padding:90px 38px 50px;
+      text-align:center;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+    }
+
+    .thankyou h1{
+      font-size:42px;
+      line-height:1;
+      margin:0 0 34px;
+    }
+
+    .thankyou p{
+      font-size:23px;
+      line-height:1.35;
+      margin-bottom:26px;
+      font-weight:300;
+    }
+
+    .thankyou img{
+      width:150px;
+      max-width:52%;
+      margin-top:auto;
+    }
+
+    .restart{
+      margin-top:18px;
+      background:transparent;
+      border:0;
+      text-decoration:underline;
+      color:var(--charcoal);
+      cursor:pointer;
+    }
 
     .email-preview{
-  background:#F5F0E8;
-  border-radius:0;
-  padding:28px 24px 32px;
-  margin-bottom:24px;
-  color:#343434;
-}
+      background:#F5F0E8;
+      padding:28px 24px 32px;
+      margin-bottom:24px;
+      color:#343434;
+    }
 
-.email-kicker{
-  font-size:12px;
-  text-transform:uppercase;
-  letter-spacing:.12em;
-  color:#343434;
-  font-weight:600;
-  margin-bottom:24px;
-}
+    .email-kicker{
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      color:#343434;
+      font-weight:600;
+      margin-bottom:24px;
+    }
 
-.email-preview h3{
-  font-size:15px;
-  line-height:1.25;
-  margin:26px 0 8px;
-  text-transform:uppercase;
-  font-weight:700;
-}
+    .email-preview h3{
+      font-size:15px;
+      line-height:1.25;
+      margin:26px 0 8px;
+      text-transform:uppercase;
+      font-weight:700;
+    }
 
-.email-preview h4{
-  font-size:15px;
-  line-height:1.25;
-  margin:22px 0 8px;
-  font-weight:700;
-}
+    .email-preview p{
+      font-size:14px;
+      line-height:1.5;
+      margin:0 0 18px;
+    }
 
-.email-preview p{
-  font-size:14px;
-  line-height:1.5;
-  margin:0 0 18px;
-}
+    .test-note{
+      font-size:12px;
+      line-height:1.45;
+      color:var(--grey);
+      margin:0 0 20px;
+    }
 
-.email-preview .big-score{
-  font-size:64px;
-  line-height:.95;
-  font-weight:900;
-  margin:8px 0 24px;
-}
+    .ai-loading{
+      padding:32px 20px;
+      text-align:center;
+      background:#fff;
+      border-radius:12px;
+      margin-bottom:24px;
+    }
 
-.email-preview .small{
-  font-size:12px;
-  color:#707070;
-}
+    .ai-loading strong{
+      display:block;
+      font-size:18px;
+      margin-bottom:8px;
+    }
 
-.ai-report{
-  white-space:normal;
-  font-size:14px;
-  line-height:1.5;
-}
-    .test-note{font-size:12px;line-height:1.45;color:var(--grey);margin:0 0 20px}
+    .ai-error{
+      background:#fff;
+      border-radius:12px;
+      padding:20px;
+      margin-bottom:24px;
+    }
 
-    .ai-loading{padding:32px 20px;text-align:center;background:#fff;border-radius:12px;margin-bottom:24px}
-    .ai-loading strong{display:block;font-size:18px;margin-bottom:8px}
-    .ai-error{background:#fff;border-radius:12px;padding:20px;margin-bottom:24px}
-    .ai-report{white-space:pre-wrap;font-size:14px;line-height:1.6}
+    .ai-report{
+      white-space:normal;
+      font-size:14px;
+      line-height:1.5;
+    }
 
     @media(min-width:700px){
-      body{background:#f6f6f4;padding:40px 0}
-      .app{min-height:auto;box-shadow:0 10px 30px rgba(0,0,0,.08)}
-      .screen,.splash,.thankyou{min-height:820px}
+      body{
+        background:#f6f6f4;
+        padding:40px 0;
+      }
+
+      .app{
+        min-height:auto;
+        box-shadow:0 10px 30px rgba(0,0,0,.08);
+      }
+
+      .screen,
+      .splash,
+      .thankyou{
+        min-height:820px;
+      }
     }
+
     @media(max-width:360px){
-      .body{padding-left:22px;padding-right:22px}
-      h1{font-size:28px}
-      h2{font-size:25px}
-      .card{padding-left:16px;padding-right:16px}
-      .scale-labels,.scale-btns{gap:3px}
+      .body{
+        padding-left:22px;
+        padding-right:22px;
+      }
+
+      h1{
+        font-size:28px;
+      }
+
+      h2{
+        font-size:25px;
+      }
+
+      .card{
+        padding-left:16px;
+        padding-right:16px;
+      }
+
+      .scale-labels,
+      .scale-btns{
+        gap:3px;
+      }
     }
   </style>
 </head>
+
 <body>
+
 <div class="app" id="app"></div>
+
 <script>
 (() => {
+
   const app = document.getElementById('app');
+
   const dims = [
-    {name:'Strategic Fitness',bg:'#E6D8C7',bar:'#E6D8C7',weights:[7, 6, 8, 6],qs:[
-      'We have a clearly defined growth ambition for the next 24 months.',
-      'Everyone in our business understands what our brand stands for.',
-      'Our positioning is distinct enough to command attention in a crowded category.',
-      'We have a clear plan for how the brand will help deliver that growth.'
-    ]},
-    {name:'Consumer Intelligence',bg:'#CBCFC6',bar:'#A8AEA0',weights:[6, 4, 6, 5],qs:[
-      "We have a deep understanding of our audience's motivations and behaviours.",
-      'We regularly gather and apply consumer insight to decision-making.',
-      'We know exactly why customers choose us over competitors.',
-      'We understand the biggest barriers preventing trial and adoption.'
-    ]},
-    {name:'Market Influence',bg:'#C4B8BD',bar:'#6B4D59',weights:[5, 6, 5, 4],qs:[
-      'Our brand has a clear and credible voice within the wellness category.',
-      'Our communications consistently build trust and authority.',
-      'Our content drives meaningful engagement rather than simply generating impressions.',
-      'We are confident our messaging cuts through category noise.'
-    ]},
-    {name:'Growth Engine',bg:'#F5F0E8',bar:'#E5DFD3',weights:[5, 5, 5, 4],qs:[
-      'We have systems in place to consistently generate demand.',
-      'Our marketing activity is directly linked to measurable business outcomes.',
-      'We know which channels create the highest commercial return.',
-      'We have a scalable customer acquisition strategy.'
-    ]},
-    {name:'Commercial Endurance',bg:'#DBDED8',bar:'#707070',weights:[4, 3, 3, 3],qs:[
-      'We retain customers effectively and continue to grow their value over time.',
-      'We use commercial performance data to make better decisions.',
-      'We know where growth is currently being constrained.',
-      'Our business model is strong enough to sustain growth over the next three years.'
-    ]}
+    {
+      name:'Strategic Fitness',
+      bg:'#E6D8C7',
+      bar:'#E6D8C7',
+      weights:[7,6,8,6],
+      qs:[
+        'We have a clearly defined growth ambition for the next 24 months.',
+        'Everyone in our business understands what our brand stands for.',
+        'Our positioning is distinct enough to command attention in a crowded category.',
+        'We have a clear plan for how the brand will help deliver that growth.'
+      ]
+    },
+    {
+      name:'Consumer Intelligence',
+      bg:'#CBCFC6',
+      bar:'#A8AEA0',
+      weights:[6,4,6,5],
+      qs:[
+        "We have a deep understanding of our audience's motivations and behaviours.",
+        'We regularly gather and apply consumer insight to decision-making.',
+        'We know exactly why customers choose us over competitors.',
+        'We understand the biggest barriers preventing trial and adoption.'
+      ]
+    },
+    {
+      name:'Market Influence',
+      bg:'#C4B8BD',
+      bar:'#6B4D59',
+      weights:[5,6,5,4],
+      qs:[
+        'Our brand has a clear and credible voice within the wellness category.',
+        'Our communications consistently build trust and authority.',
+        'Our content drives meaningful engagement rather than simply generating impressions.',
+        'We are confident our messaging cuts through category noise.'
+      ]
+    },
+    {
+      name:'Growth Engine',
+      bg:'#F5F0E8',
+      bar:'#E5DFD3',
+      weights:[5,5,5,4],
+      qs:[
+        'We have systems in place to consistently generate demand.',
+        'Our marketing activity is directly linked to measurable business outcomes.',
+        'We know which channels create the highest commercial return.',
+        'We have a scalable customer acquisition strategy.'
+      ]
+    },
+    {
+      name:'Commercial Endurance',
+      bg:'#DBDED8',
+      bar:'#707070',
+      weights:[4,3,3,3],
+      qs:[
+        'We retain customers effectively and continue to grow their value over time.',
+        'We use commercial performance data to make better decisions.',
+        'We know where growth is currently being constrained.',
+        'Our business model is strong enough to sustain growth over the next three years.'
+      ]
+    }
   ];
 
-  let state='splash', idx=0, answers=Array(20).fill(null), email='', brand='';
-  let about={name:'',position:'',company:'',website:'',mobile:''};
+  let state='splash';
+  let idx=0;
+  let answers=Array(20).fill(null);
+  let email='';
+  let brand='';
 
-  const header = () => `<div class="header"><img src="assets/Logo_2.png" alt="The Creative Lab"></div>`;
+  let about={
+    name:'',
+    position:'',
+    company:'',
+    website:'',
+    mobile:''
+  };
+
+  const header=()=>`
+    <div class="header">
+      <img src="assets/Logo_2.png" alt="The Creative Lab">
+    </div>
+  `;
 
   function renderSplash(){
-    app.innerHTML = `<div class="splash"><img src="assets/Logo.png" alt="The Creative Lab"><button class="primary" id="start">Start Diagnostic</button></div>`;
-    document.getElementById('start').onclick=()=>{state='intro';render();};
+
+    app.innerHTML=`
+      <div class="splash">
+        <img src="assets/Logo.png" alt="The Creative Lab">
+
+        <button class="primary" id="start">
+          Start Diagnostic
+        </button>
+      </div>
+    `;
+
+    document.getElementById('start').onclick=()=>{
+      state='intro';
+      render();
+    };
   }
 
   function renderIntro(){
-    app.innerHTML = `<div class="screen">${header()}<div class="body">
-      <h1>Brand<br>Performance<br>Diagnostic</h1>
-      <p>Answer 20 quick questions to see how your wellness brand is performing across five key areas:</p>
-      <div class="dims">${dims.map(d=>`<div>${d.name}</div>`).join('')}</div>
-      <p>Score each statement from 0–9, based on your first instinct.</p>
-      <div class="field-label">Enter your email to begin.</div>
-      <input id="email" type="email" placeholder="Email address" value="${email}">
-      <button class="primary" id="begin">Begin</button><div id="err" class="error"></div>
-    </div></div>`;
+
+    app.innerHTML=`
+      <div class="screen">
+        ${header()}
+
+        <div class="body">
+
+          <h1>
+            Brand<br>
+            Performance<br>
+            Diagnostic
+          </h1>
+
+          <p>
+            Answer 20 quick questions to see how your wellness brand is performing across five key areas:
+          </p>
+
+          <div class="dims">
+            ${dims.map(d=>`<div>${d.name}</div>`).join('')}
+          </div>
+
+          <p>
+            Score each statement from 0–9, based on your first instinct.
+          </p>
+
+          <div class="field-label">
+            Enter your email to begin.
+          </div>
+
+          <input
+            id="email"
+            type="email"
+            placeholder="Email address"
+            value="${email}"
+          >
+
+          <button class="primary" id="begin">
+            Begin
+          </button>
+
+          <div id="err" class="error"></div>
+
+        </div>
+      </div>
+    `;
+
     document.getElementById('begin').onclick=()=>{
+
       email=document.getElementById('email').value.trim();
-      if(!email.includes('@')){document.getElementById('err').textContent='Please enter a valid email address.';return;}
-      state='about';render();
+
+      if(!email.includes('@')){
+        document.getElementById('err').textContent=
+          'Please enter a valid email address.';
+        return;
+      }
+
+      state='about';
+      render();
     };
   }
 
   function renderAbout(){
-    app.innerHTML = `<div class="screen">${header()}<div class="body"><h2>About you</h2>
-      <div class="card about">
-        <div class="field"><label>Name</label><input id="nm" value="${about.name}"></div>
-        <div class="field"><label>Position</label><input id="pos" value="${about.position}"></div>
-        <div class="field"><label>Registered name of company</label><input id="co" value="${about.company}"></div>
-        <div class="field"><label>Website</label><input id="web" type="url" placeholder="https://…" value="${about.website}"></div>
-        <div class="field"><label>Mobile number</label><input id="mob" value="${about.mobile}"></div>
+
+    app.innerHTML=`
+      <div class="screen">
+        ${header()}
+
+        <div class="body">
+
+          <h2>About you</h2>
+
+          <div class="card about">
+
+            <div class="field">
+              <label>Name</label>
+              <input id="nm" value="${about.name}">
+            </div>
+
+            <div class="field">
+              <label>Position</label>
+              <input id="pos" value="${about.position}">
+            </div>
+
+            <div class="field">
+              <label>Registered name of company</label>
+              <input id="co" value="${about.company}">
+            </div>
+
+            <div class="field">
+              <label>Website</label>
+              <input
+                id="web"
+                type="url"
+                placeholder="https://…"
+                value="${about.website}"
+              >
+            </div>
+
+            <div class="field">
+              <label>Mobile number</label>
+              <input id="mob" value="${about.mobile}">
+            </div>
+
+          </div>
+
+          <button class="primary" id="next">
+            Next
+          </button>
+
+          <div id="err" class="error"></div>
+
+        </div>
       </div>
-      <button class="primary" id="next">Next</button><div id="err" class="error"></div>
-    </div></div>`;
+    `;
+
     document.getElementById('next').onclick=()=>{
+
       about={
         name:document.getElementById('nm').value.trim(),
         position:document.getElementById('pos').value.trim(),
@@ -223,140 +710,373 @@
         website:document.getElementById('web').value.trim(),
         mobile:document.getElementById('mob').value.trim()
       };
-      if(!about.name||!about.company||!about.website){
-        document.getElementById('err').textContent='Please enter your name, company and website.';
+
+      if(
+        !about.name ||
+        !about.company ||
+        !about.website
+      ){
+        document.getElementById('err').textContent=
+          'Please enter your name, company and website.';
         return;
       }
-      if(!/^https?:\/\//i.test(about.website)) about.website='https://'+about.website;
-      brand=about.company; state='questions'; idx=0; render();
+
+      if(!/^https?:\/\//i.test(about.website)){
+        about.website='https://'+about.website;
+      }
+
+      brand=about.company;
+      state='questions';
+      idx=0;
+
+      render();
     };
   }
 
   function renderQuestions(){
-    const d=dims[idx], offset=idx*4;
-    app.innerHTML=`<div class="screen" style="background:${d.bg}">${header()}<div class="body">
-      <h2>${d.name}</h2><div class="card"><div class="helper">0 = strongly disagree&nbsp;&nbsp;&nbsp;9 = strongly agree</div>
-      ${d.qs.map((q,j)=>{const qi=offset+j;return `<div class="question"><div class="qtext">${qi+1}) ${q}</div>
-      <div class="scale-labels">${Array.from({length:10},(_,n)=>`<span>${n}</span>`).join('')}</div>
-      <div class="scale-btns">${Array.from({length:10},(_,n)=>`<button type="button" class="score ${answers[qi]===n?'selected':''}" data-q="${qi}" data-v="${n}" aria-label="Score ${n}"></button>`).join('')}</div></div>`}).join('')}
-      </div><button class="primary" id="next">${idx===4?'Reveal My Score':'Next'}</button><div id="err" class="error"></div></div>
-      <div class="footer">${d.name} · ${idx+1} of 5</div></div>`;
-    document.querySelectorAll('.score').forEach(b=>b.onclick=()=>{answers[+b.dataset.q]=+b.dataset.v;renderQuestions();});
+
+    const d=dims[idx];
+    const offset=idx*4;
+
+    app.innerHTML=`
+      <div
+        class="screen"
+        style="background:${d.bg}"
+      >
+
+        ${header()}
+
+        <div class="body">
+
+          <h2>${d.name}</h2>
+
+          <div class="card">
+
+            <div class="helper">
+              0 = strongly disagree&nbsp;&nbsp;&nbsp;9 = strongly agree
+            </div>
+
+            ${d.qs.map((q,j)=>{
+
+              const qi=offset+j;
+
+              return `
+                <div class="question">
+
+                  <div class="qtext">
+                    ${qi+1}) ${q}
+                  </div>
+
+                  <div class="scale-labels">
+                    ${Array.from(
+                      {length:10},
+                      (_,n)=>`<span>${n}</span>`
+                    ).join('')}
+                  </div>
+
+                  <div class="scale-btns">
+
+                    ${Array.from(
+                      {length:10},
+                      (_,n)=>`
+                        <button
+                          type="button"
+                          class="score ${answers[qi]===n?'selected':''}"
+                          data-q="${qi}"
+                          data-v="${n}"
+                          aria-label="Score ${n}"
+                        ></button>
+                      `
+                    ).join('')}
+
+                  </div>
+
+                </div>
+              `;
+            }).join('')}
+
+          </div>
+
+          <button class="primary" id="next">
+            ${idx===4?'Reveal My Score':'Next'}
+          </button>
+
+          <div id="err" class="error"></div>
+
+        </div>
+
+        <div class="footer">
+          ${d.name} · ${idx+1} of 5
+        </div>
+
+      </div>
+    `;
+
+    document.querySelectorAll('.score').forEach(button=>{
+
+      button.onclick=()=>{
+
+        answers[+button.dataset.q]=+button.dataset.v;
+
+        renderQuestions();
+      };
+    });
+
     document.getElementById('next').onclick=()=>{
-      if(answers.slice(offset,offset+4).some(v=>v===null)){document.getElementById('err').textContent='Please answer all four statements.';return;}
-      if(idx<4){idx++;renderQuestions();}else{state='result';render();}
+
+      if(
+        answers
+          .slice(offset,offset+4)
+          .some(value=>value===null)
+      ){
+        document.getElementById('err').textContent=
+          'Please answer all four statements.';
+        return;
+      }
+
+      if(idx<4){
+
+        idx++;
+        renderQuestions();
+
+      }else{
+
+        state='result';
+        render();
+      }
     };
   }
 
   function calc(){
-    // Weighted scoring methodology:
-    // Each answer (0–9) is multiplied by its question weighting.
-    // Each dimension is converted to /100 using that dimension's weighted maximum.
-    // All question weightings total 100, so the overall weighted maximum is 900.
+
     const ds=dims.map((d,i)=>{
+
       const scores=answers.slice(i*4,i*4+4);
-      const weighted=scores.reduce((sum,score,j)=>sum+(score*d.weights[j]),0);
-      const max=d.weights.reduce((sum,w)=>sum+w,0)*9;
-      return Math.round((weighted/max)*100);
+
+      const weighted=scores.reduce(
+        (sum,score,j)=>sum+(score*d.weights[j]),
+        0
+      );
+
+      const max=
+        d.weights.reduce(
+          (sum,w)=>sum+w,
+          0
+        )*9;
+
+      return Math.round(
+        (weighted/max)*100
+      );
     });
 
-    const allWeights=dims.flatMap(d=>d.weights);
-    const weightedTotal=answers.reduce((sum,score,i)=>sum+(score*allWeights[i]),0);
-    const overallMax=allWeights.reduce((sum,w)=>sum+w,0)*9;
+    const allWeights=
+      dims.flatMap(d=>d.weights);
 
-    return {overall:Math.round((weightedTotal/overallMax)*100),ds};
+    const weightedTotal=
+      answers.reduce(
+        (sum,score,i)=>
+          sum+(score*allWeights[i]),
+        0
+      );
+
+    const overallMax=
+      allWeights.reduce(
+        (sum,w)=>sum+w,
+        0
+      )*9;
+
+    return {
+      overall:Math.round(
+        (weightedTotal/overallMax)*100
+      ),
+      ds
+    };
   }
 
-  function interpret(overall, ds){
-    const gap=Math.max(...ds)-Math.min(...ds);
-    if(ds.filter(v=>v<50).length>=4) return 'The scores point to broad weaknesses across the brand rather than one isolated issue.';
-    if(ds.every(v=>v>=70)) return 'Strong performance across the brand, with clear opportunities to build on what is already working.';
-    if(gap>=25) return 'There is a clear imbalance in performance, with some areas working much harder than others.';
-    if(gap<=10) return 'Performance is relatively even across the brand, with no single area dramatically ahead or behind.';
-    if(overall>=70) return 'Strong foundations, with clear opportunities to unlock more growth.';
-    if(overall>=50) return 'There are solid foundations, but some parts of the brand are working harder than others.';
+  function interpret(overall,ds){
+
+    const gap=
+      Math.max(...ds)-
+      Math.min(...ds);
+
+    if(ds.filter(v=>v<50).length>=4){
+      return 'The scores point to broad weaknesses across the brand rather than one isolated issue.';
+    }
+
+    if(ds.every(v=>v>=70)){
+      return 'Strong performance across the brand, with clear opportunities to build on what is already working.';
+    }
+
+    if(gap>=25){
+      return 'There is a clear imbalance in performance, with some areas working much harder than others.';
+    }
+
+    if(gap<=10){
+      return 'Performance is relatively even across the brand, with no single area dramatically ahead or behind.';
+    }
+
+    if(overall>=70){
+      return 'Strong foundations, with clear opportunities to unlock more growth.';
+    }
+
+    if(overall>=50){
+      return 'There are solid foundations, but some parts of the brand are working harder than others.';
+    }
+
     return 'There is potential in the brand, but a number of areas are currently limiting performance.';
   }
 
-
   function analyseDiagnostic(){
-    const {overall,ds}=calc();
-    const max=Math.max(...ds), min=Math.min(...ds);
-    const strongest=ds.indexOf(max), weakest=ds.indexOf(min);
-    const gap=max-min;
-    const lows=ds.filter(v=>v<50).length;
-    const highs=ds.filter(v=>v>=70).length;
 
-    const qDetails=answers.map((score,i)=>{
-      const di=Math.floor(i/4), qi=i%4;
-      return {score, dimension:dims[di].name, question:dims[di].qs[qi], index:i};
-    });
-    const lowestQuestions=[...qDetails].sort((a,b)=>a.score-b.score).slice(0,3);
-    const highestQuestions=[...qDetails].sort((a,b)=>b.score-a.score).slice(0,3);
+    const {overall,ds}=calc();
+
+    const max=Math.max(...ds);
+    const min=Math.min(...ds);
+
+    const strongest=ds.indexOf(max);
+    const weakest=ds.indexOf(min);
+
+    const gap=max-min;
+
+    const lows=
+      ds.filter(v=>v<50).length;
+
+    const highs=
+      ds.filter(v=>v>=70).length;
+
+    const qDetails=
+      answers.map((score,i)=>{
+
+        const di=Math.floor(i/4);
+        const qi=i%4;
+
+        return {
+          score,
+          dimension:dims[di].name,
+          question:dims[di].qs[qi],
+          index:i
+        };
+      });
+
+    const lowestQuestions=
+      [...qDetails]
+        .sort((a,b)=>a.score-b.score)
+        .slice(0,3);
+
+    const highestQuestions=
+      [...qDetails]
+        .sort((a,b)=>b.score-a.score)
+        .slice(0,3);
 
     let pattern='mixed performance';
-    if(lows>=4) pattern='systemic weakness';
-    else if(ds.every(v=>v>=70)) pattern='strong across the board';
-    else if(gap>=25) pattern='major imbalance';
-    else if(gap<=10) pattern='flat profile';
-    else if((ds[0]>=70||ds[1]>=70) && (ds[3]<50||ds[4]<50)) pattern='strong foundations / weak growth conversion';
-    else if((ds[3]>=70||ds[4]>=70) && (ds[0]<50||ds[1]<50)) pattern='strong commercial engine / weak foundations';
 
-    return {overall,ds,strongest,weakest,gap,lows,highs,pattern,lowestQuestions,highestQuestions};
-  }
+    if(lows>=4){
 
-  function areaComment(i,score){
-    const name=dims[i].name;
-    if(score>=70) return `${name} is a relative strength. The score suggests this area is contributing positively to overall brand performance.`;
-    if(score>=50) return `${name} is reasonably developed, but the score suggests there is still room to make it more consistent and commercially effective.`;
-    return `${name} is currently underdeveloped and is likely to be limiting overall brand performance.`;
+      pattern='systemic weakness';
+
+    }else if(ds.every(v=>v>=70)){
+
+      pattern='strong across the board';
+
+    }else if(gap>=25){
+
+      pattern='major imbalance';
+
+    }else if(gap<=10){
+
+      pattern='flat profile';
+
+    }else if(
+      (ds[0]>=70 || ds[1]>=70) &&
+      (ds[3]<50 || ds[4]<50)
+    ){
+
+      pattern='strong foundations / weak growth conversion';
+
+    }else if(
+      (ds[3]>=70 || ds[4]>=70) &&
+      (ds[0]<50 || ds[1]<50)
+    ){
+
+      pattern='strong commercial engine / weak foundations';
+    }
+
+    return {
+      overall,
+      ds,
+      strongest,
+      weakest,
+      gap,
+      lows,
+      highs,
+      pattern,
+      lowestQuestions,
+      highestQuestions
+    };
   }
 
   function buildEmailReport(){
+
     const a=analyseDiagnostic();
-    const strongest=dims[a.strongest].name;
-    const weakest=dims[a.weakest].name;
-    const firstName=(about.name||'').trim().split(/\s+/)[0] || 'there';
 
-    let overallMeaning;
-    if(a.lows>=4){
-      overallMeaning=`The score points to broad weaknesses across the brand rather than one isolated issue. The priority is to strengthen the underlying system before pushing harder for growth.`;
-    } else if(a.ds.every(v=>v>=70)){
-      overallMeaning=`This is a strong overall result. The brand appears to have solid foundations across all five areas, so the focus shifts from fixing weaknesses to identifying where the strongest commercial upside sits.`;
-    } else if(a.gap>=25){
-      overallMeaning=`The overall score hides a meaningful imbalance. Some parts of the brand are working much harder than others, which is likely to be reducing the return from the strengths already in place.`;
-    } else if(a.gap<=10){
-      overallMeaning=`Performance is relatively even across all five areas. That consistency is useful, but the next question is whether the whole system is operating at a high enough level to create a clear competitive advantage.`;
-    } else if(a.overall>=70){
-      overallMeaning=`The brand has strong foundations, with a few areas that could be sharpened to unlock more growth.`;
-    } else if(a.overall>=50){
-      overallMeaning=`There are solid foundations, but performance is uneven. The opportunity is to improve the areas that are preventing the stronger parts of the brand from translating into greater commercial momentum.`;
-    } else {
-      overallMeaning=`There is clear potential in the brand, but several areas are currently limiting performance. The immediate opportunity is to identify which constraint is having the greatest knock-on effect.`;
-    }
+    const strongest=
+      dims[a.strongest].name;
 
-    const low=a.lowestQuestions[0];
-    const high=a.highestQuestions[0];
-    const evidence=`One of the clearest signals in the answers is the contrast between “${high.question}” (${high.score}/9) and “${low.question}” (${low.score}/9). That difference helps explain where confidence is strongest and where the brand currently has less clarity or capability.`;
+    const weakest=
+      dims[a.weakest].name;
 
-    const priority=`The first area to focus on is ${weakest}. At ${a.ds[a.weakest]}/100, it is the weakest of the five dimensions${a.gap>=15 ? ` and sits ${a.gap} points behind the strongest area` : ''}. Improving this area should help the rest of the brand perform more effectively rather than simply adding more activity.`;
+    const firstName=
+      (about.name||'')
+        .trim()
+        .split(/\s+/)[0] || 'there';
 
-    return {a,firstName,strongest,weakest,overallMeaning,evidence,priority};
+    return {
+      a,
+      firstName,
+      strongest,
+      weakest
+    };
   }
 
   async function renderEmailPreview(){
-  app.classList.add('email-mode');
 
-  const r=buildEmailReport();
-  const a=r.a;
-    app.innerHTML=`<div class="screen">${header()}<div class="body">
-      <h2>Test email preview</h2>
-      <p class="test-note">This test combines the client’s website with the exact diagnostic submission. No email is being sent yet.</p>
-      <div class="ai-loading">
-        <strong>Analysing ${brand}</strong>
-        <span>Reviewing the business and interpreting the diagnostic results…</span>
+    app.classList.add('email-mode');
+
+    const r=buildEmailReport();
+    const a=r.a;
+
+    app.innerHTML=`
+      <div class="screen">
+
+        ${header()}
+
+        <div class="body">
+
+          <h2>
+            Test email preview
+          </h2>
+
+          <p class="test-note">
+            This test combines the client’s website with the exact diagnostic submission.
+            No email is being sent yet.
+          </p>
+
+          <div class="ai-loading">
+
+            <strong>
+              Analysing ${brand}
+            </strong>
+
+            <span>
+              Reviewing the business and interpreting the diagnostic results…
+            </span>
+
+          </div>
+
+        </div>
+
       </div>
-    </div></div>`;
+    `;
 
     const payload={
       client:{
@@ -365,327 +1085,720 @@
         company:about.company,
         website:about.website
       },
+
       diagnostic:{
         overall_score:a.overall,
-        dimensions:Object.fromEntries(dims.map((d,i)=>[d.name,a.ds[i]])),
-        strongest_dimension:r.strongest,
-        weakest_dimension:r.weakest,
-        largest_gap:a.gap,
-        pattern:a.pattern,
-        answers:dims.flatMap((d,di)=>d.qs.map((question,qi)=>({
-          dimension:d.name,
-          question,
-          score:answers[di*4+qi],
-          weighting:d.weights[qi]
-        })))
+
+        dimensions:
+          Object.fromEntries(
+            dims.map(
+              (d,i)=>[
+                d.name,
+                a.ds[i]
+              ]
+            )
+          ),
+
+        strongest_dimension:
+          r.strongest,
+
+        weakest_dimension:
+          r.weakest,
+
+        largest_gap:
+          a.gap,
+
+        pattern:
+          a.pattern,
+
+        answers:
+          dims.flatMap(
+            (d,di)=>
+              d.qs.map(
+                (question,qi)=>({
+                  dimension:d.name,
+                  question,
+                  score:
+                    answers[
+                      di*4+qi
+                    ]
+                })
+              )
+          )
       }
     };
 
     try{
-      const response=await fetch('/.netlify/functions/generate-report',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(payload)
-      });
-      const data=await response.json();
-      if(!response.ok) throw new Error(data.error||'Unable to generate report.');
+
+      const response=
+        await fetch(
+          '/.netlify/functions/generate-report',
+          {
+            method:'POST',
+
+            headers:{
+              'Content-Type':
+                'application/json'
+            },
+
+            body:
+              JSON.stringify(payload)
+          }
+        );
+
+      const data=
+        await response.json();
+
+      if(!response.ok){
+
+        throw new Error(
+          data.error ||
+          'Unable to generate report.'
+        );
+      }
+
+      const report=
+        data.report || {};
+
+      const areaItems=[
+        {
+          name:'Strategic Fitness',
+          score:a.ds[0],
+          colour:'#E5DFD3',
+          text:
+            report.strategic_commentary || ''
+        },
+        {
+          name:'Consumer Intelligence',
+          score:a.ds[1],
+          colour:'#D8DDD2',
+          text:
+            report.consumer_commentary || ''
+        },
+        {
+          name:'Market Influence',
+          score:a.ds[2],
+          colour:'#DED3D8',
+          text:
+            report.market_commentary || ''
+        },
+        {
+          name:'Growth Engine',
+          score:a.ds[3],
+          colour:'#E6D8C7',
+          text:
+            report.growth_commentary || ''
+        },
+        {
+          name:'Commercial Endurance',
+          score:a.ds[4],
+          colour:'#D8DDD2',
+          text:
+            report.commercial_commentary || ''
+        }
+      ];
+
+      const areaRows=
+        areaItems
+          .map(item=>`
+
+            <div style="
+              display:grid;
+              grid-template-columns:72px 1fr;
+              gap:18px;
+              align-items:start;
+              padding:22px 0;
+              border-bottom:1px solid #9d9a95;
+            ">
+
+              <div style="
+                width:58px;
+                height:58px;
+                border-radius:50%;
+                background:${item.colour};
+                display:flex;
+                flex-direction:column;
+                align-items:center;
+                justify-content:center;
+                line-height:1;
+              ">
+
+                <strong style="
+                  font-size:21px;
+                  line-height:1;
+                ">
+                  ${item.score}
+                </strong>
+
+                <span style="
+                  font-size:10px;
+                  line-height:1;
+                  margin-top:4px;
+                ">
+                  /100
+                </span>
+
+              </div>
+
+              <div style="
+                display:flex;
+                flex-direction:column;
+                gap:7px;
+                min-width:0;
+              ">
+
+                <div style="
+                  font-size:15px;
+                  line-height:1.2;
+                  font-weight:700;
+                  margin:0;
+                  padding:0;
+                ">
+                  ${item.name}
+                </div>
+
+                <div style="
+                  font-size:14px;
+                  line-height:1.5;
+                  margin:0;
+                  padding:0;
+                ">
+                  ${escapeHtml(item.text)}
+                </div>
+
+              </div>
+
+            </div>
+
+          `)
+          .join('');
 
       app.innerHTML=`
-<div class="screen">
-  ${header()}
-  <div class="body">
+        <div class="screen">
 
-    <h2>Test email preview</h2>
-    <p class="test-note">
-      Generated from ${brand}'s website and this diagnostic submission. No email has been sent.
-    </p>
+          ${header()}
 
-    <div class="email-preview">
+          <div class="body">
 
-      <div class="email-kicker">${brand}</div>
+            <h2>
+              Test email preview
+            </h2>
 
-      <p>Hi ${r.firstName},</p>
+            <p class="test-note">
+              Generated from ${brand}’s website and this diagnostic submission.
+              No email has been sent.
+            </p>
 
-      <p>Thank you for completing our Brand Performance Diagnostic.</p>
+            <div class="email-preview">
 
-      <p>
-        We’ve reviewed your responses and looked at your brand to create the personalised report below.
-        It highlights what’s working, where growth may be getting constrained and where we think your attention should go next.
-      </p>
+              <div class="email-kicker">
+                ${brand}
+              </div>
 
-      <p>
-        The report is deliberately high level. The real value comes from looking at the findings in context
-        and deciding what to prioritise. That’s where our <strong>Now, Next and Nurture</strong> growth pathway comes in.
-      </p>
+              <p>
+                Hi ${r.firstName},
+              </p>
 
-      <p>But first, here’s what your diagnostic is telling us.</p>
+              <p>
+                Thank you for completing our Brand Performance Diagnostic.
+              </p>
 
-      <div style="
-        background:#A8AEA0;
-        border-radius:14px;
-        padding:22px 24px;
-        margin:24px 0 28px;
-      ">
-        <div style="
-          font-size:14px;
-          font-weight:700;
-          margin-bottom:8px;
-        ">
-          Your Brand Performance Score
+              <p>
+                We’ve reviewed your responses and looked at your brand to create the personalised report below.
+                It highlights what’s working, where growth may be getting constrained and where we think your attention should go next.
+              </p>
+
+              <p>
+                The report is deliberately high level.
+                The real value comes from looking at the findings in context and deciding what to prioritise.
+                That’s where our <strong>Now, Next and Nurture</strong> growth pathway comes in.
+              </p>
+
+              <p>
+                But first, here’s what your diagnostic is telling us.
+              </p>
+
+              <div style="
+                background:#A8AEA0;
+                border-radius:14px;
+                padding:24px 28px;
+                margin:28px 0 34px;
+              ">
+
+                <div style="
+                  font-size:14px;
+                  font-weight:700;
+                  margin-bottom:10px;
+                ">
+                  Your Brand Performance Score
+                </div>
+
+                <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:flex-end;
+                  gap:20px;
+                ">
+
+                  <div>
+
+                    <span style="
+                      font-size:68px;
+                      line-height:1;
+                      font-weight:900;
+                      color:#F5F0E8;
+                    ">
+                      ${a.overall}
+                    </span>
+
+                    <span style="
+                      font-size:34px;
+                      line-height:1;
+                      color:#343434;
+                    ">
+                      /100
+                    </span>
+
+                  </div>
+
+                  <div style="
+                    display:flex;
+                    align-items:flex-end;
+                    gap:6px;
+                  ">
+
+                    <span style="
+                      width:19px;
+                      height:19px;
+                      background:#6B4D59;
+                      display:block;
+                    "></span>
+
+                    <span style="
+                      width:19px;
+                      height:36px;
+                      background:#E5DFD3;
+                      display:block;
+                    "></span>
+
+                    <span style="
+                      width:19px;
+                      height:52px;
+                      background:#E5DFD3;
+                      display:block;
+                    "></span>
+
+                    <span style="
+                      width:19px;
+                      height:68px;
+                      background:#E5DFD3;
+                      display:block;
+                    "></span>
+
+                    <span style="
+                      width:19px;
+                      height:84px;
+                      background:#E5DFD3;
+                      display:block;
+                    "></span>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              <div class="ai-report">
+
+                <h3>
+                  WHAT YOUR SCORE MEANS
+                </h3>
+
+                <p>
+                  ${escapeHtml(
+                    report.score_meaning || ''
+                  )}
+                </p>
+
+                <div style="
+                  height:1px;
+                  background:#9d9a95;
+                  margin:28px 0;
+                "></div>
+
+                <h3>
+                  WHAT STANDS OUT
+                </h3>
+
+                <p>
+                  ${escapeHtml(
+                    report.stands_out || ''
+                  )}
+                </p>
+
+                <div style="
+                  height:1px;
+                  background:#9d9a95;
+                  margin:28px 0;
+                "></div>
+
+                <h3>
+                  THE FIVE AREAS
+                </h3>
+
+                ${areaRows}
+
+                <h3 style="
+                  margin-top:30px;
+                ">
+                  WHERE TO FOCUS NEXT
+                </h3>
+
+                <p>
+                  ${escapeHtml(
+                    report.focus_next || ''
+                  )}
+                </p>
+
+                <div style="
+                  height:1px;
+                  background:#9d9a95;
+                  margin:30px 0;
+                "></div>
+
+                <p>
+                  We hope this gives you a useful view of where the brand stands today and,
+                  more importantly, where the opportunity may lie.
+                </p>
+
+                <p>
+                  If you’d like to talk it through,
+                  we’d be happy to arrange a no-obligation call and explore what
+                  <strong>Now, Next and Nurture</strong>
+                  could look like for your business.
+                </p>
+
+                <div style="
+                  margin-top:30px;
+                  background:#D6D9D1;
+                  border-radius:14px;
+                  padding:24px 20px;
+                  display:grid;
+                  grid-template-columns:1fr 1fr;
+                  gap:0;
+                  text-align:center;
+                  font-size:13px;
+                  line-height:1.45;
+                ">
+
+                  <div style="
+                    padding:0 18px;
+                    border-right:1px solid #8f918c;
+                  ">
+
+                    <strong>
+                      Michael Miley, CEO
+                    </strong>
+
+                    <br><br>
+
+                    michael@thec-lab.co.uk
+
+                    <br>
+
+                    +44 (0)7860 441128
+
+                  </div>
+
+                  <div style="
+                    padding:0 18px;
+                  ">
+
+                    <strong>
+                      Paul Cope, MD
+                    </strong>
+
+                    <br><br>
+
+                    paul@thec-lab.co.uk
+
+                    <br>
+
+                    +44 (0)7900 900704
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            <button
+              class="primary"
+              id="finish"
+            >
+              Continue
+            </button>
+
+          </div>
+
         </div>
+      `;
 
-        <div style="
-          display:flex;
-          align-items:flex-end;
-          justify-content:space-between;
-          gap:12px;
-        ">
-          <div>
-            <span style="
-              font-size:64px;
-              line-height:1;
-              font-weight:900;
-              color:#F5F0E8;
-            ">${a.overall}</span>
-            <span style="
-              font-size:34px;
-              line-height:1;
-              color:#343434;
-            ">/100</span>
-          </div>
+      document
+        .getElementById('finish')
+        .onclick=()=>{
 
-          <div style="
-            display:flex;
-            align-items:flex-end;
-            gap:6px;
-            padding-bottom:4px;
-          ">
-            <span style="display:block;width:18px;height:18px;background:#6B4D59"></span>
-            <span style="display:block;width:18px;height:34px;background:#E5DFD3"></span>
-            <span style="display:block;width:18px;height:50px;background:#E5DFD3"></span>
-            <span style="display:block;width:18px;height:66px;background:#E5DFD3"></span>
-            <span style="display:block;width:18px;height:82px;background:#E5DFD3"></span>
-          </div>
-        </div>
-      </div>
+          state='done';
+          render();
+        };
 
-      <div class="ai-report">
-
-        <h3>WHAT YOUR SCORE MEANS</h3>
-        <p>${escapeHtml(data.report.score_meaning || "")}</p>
-
-        <div style="height:1px;background:#9d9a95;margin:22px 0;"></div>
-
-        <h3>WHAT STANDS OUT</h3>
-        <p>${escapeHtml(data.report.stands_out || "")}</p>
-
-        <div style="height:1px;background:#9d9a95;margin:22px 0;"></div>
-
-        <h3>THE FIVE AREAS</h3>
-
-        ${[
-  {
-    name:"Strategic Fitness",
-    score:a.ds[0],
-    colour:"#E5DFD3",
-    text:data.report.strategic_commentary
-  },
-  {
-    name:"Consumer Intelligence",
-    score:a.ds[1],
-    colour:"#D8DDD2",
-    text:data.report.consumer_commentary
-  },
-  {
-    name:"Market Influence",
-    score:a.ds[2],
-    colour:"#DED3D8",
-    text:data.report.market_commentary
-  },
-  {
-    name:"Growth Engine",
-    score:a.ds[3],
-    colour:"#E6D8C7",
-    text:data.report.growth_commentary
-  },
-  {
-    name:"Commercial Endurance",
-    score:a.ds[4],
-    colour:"#D8DDD2",
-    text:data.report.commercial_commentary
-  }
-].map(item => `
-  <div style="
-    display:grid;
-    grid-template-columns:70px 1fr;
-    gap:16px;
-    align-items:start;
-    padding:18px 0;
-    border-bottom:1px solid #9d9a95;
-  ">
-
-    <div style="
-      width:58px;
-      height:58px;
-      border-radius:50%;
-      background:${item.colour};
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      line-height:1;
-      margin-top:2px;
-    ">
-      <strong style="
-        font-size:21px;
-        line-height:1;
-      ">${item.score}</strong>
-
-      <span style="
-        font-size:11px;
-        line-height:1;
-        margin-top:3px;
-      ">/100</span>
-    </div>
-
-    <div>
-      <div style="
-  display:flex;
-  flex-direction:column;
-  justify-content:flex-start;
-  gap:6px;
-">
-
-  <div style="
-    font-size:15px;
-    line-height:1.2;
-    font-weight:700;
-    margin:0;
-    padding:0;
-  ">
-    ${item.name}
-  </div>
-
-  <div style="
-    font-size:14px;
-    line-height:1.5;
-    margin:0;
-    padding:0;
-  ">
-    ${escapeHtml(item.text || "")}
-  </div>
-
-</div>
-
-  </div>
-`).join("")}
-
-        <h3 style="margin-top:28px;">WHERE TO FOCUS NEXT</h3>
-        <p>${escapeHtml(data.report.focus_next || "")}</p>
-
-        <div style="height:1px;background:#9d9a95;margin:22px 0;"></div>
-
-        <p>
-          We hope this gives you a useful view of where the brand stands today and,
-          more importantly, where the opportunity may lie.
-        </p>
-
-        <p>
-          If you’d like to talk it through, we’d be happy to arrange a no-obligation call
-          and explore what <strong>Now, Next and Nurture</strong> could look like for your business.
-        </p>
-
-        <div style="
-          margin-top:26px;
-          background:#D6D9D1;
-          border-radius:14px;
-          padding:22px 16px;
-          display:grid;
-          grid-template-columns:1fr 1fr;
-          text-align:center;
-        ">
-
-          <div style="
-            padding:0 12px;
-            border-right:1px solid #8f918c;
-          ">
-            <strong>Michael Miley, CEO</strong><br>
-            michael@thec-lab.co.uk<br>
-            +44 (0)7860 441128
-          </div>
-
-          <div style="padding:0 12px;">
-            <strong>Paul Cope, MD</strong><br>
-            paul@thec-lab.co.uk<br>
-            +44 (0)7900 900704
-          </div>
-
-        </div>
-
-      </div>
-    </div>
-
-    <button class="primary" id="finish">Continue</button>
-
-  </div>
-</div>`;
-      document.getElementById('finish').onclick=()=>{state='done';render();};
     }catch(err){
-      app.innerHTML=`<div class="screen">${header()}<div class="body">
-        <h2>Test email preview</h2>
-        <div class="ai-error">
-          <strong>The live business analysis isn’t connected yet.</strong>
-          <p>${escapeHtml(err.message)}</p>
-          <p class="small">The diagnostic itself still works. Once the Netlify function and API key are connected, this screen will analyse the company website and the submitted scores together.</p>
+
+      app.innerHTML=`
+        <div class="screen">
+
+          ${header()}
+
+          <div class="body">
+
+            <h2>
+              Test email preview
+            </h2>
+
+            <div class="ai-error">
+
+              <strong>
+                Unable to generate the report.
+              </strong>
+
+              <p>
+                ${escapeHtml(
+                  err.message ||
+                  'Something went wrong.'
+                )}
+              </p>
+
+            </div>
+
+            <button
+              class="primary"
+              id="backToResult"
+            >
+              Back to score
+            </button>
+
+          </div>
+
         </div>
-        <button class="primary" id="backToResult">Back to score</button>
-      </div></div>`;
-      document.getElementById('backToResult').onclick=()=>{state='result';render();};
+      `;
+
+      document
+        .getElementById('backToResult')
+        .onclick=()=>{
+
+          state='result';
+          render();
+        };
     }
   }
 
   function escapeHtml(value){
-    return String(value??'').replace(/[&<>"']/g,ch=>({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
-    })[ch]);
+
+    return String(value??'')
+      .replace(
+        /[&<>"']/g,
+        ch=>({
+          '&':'&amp;',
+          '<':'&lt;',
+          '>':'&gt;',
+          '"':'&quot;',
+          "'":'&#039;'
+        })[ch]
+      );
   }
 
   function renderResult(){
+
     const {overall,ds}=calc();
-    app.innerHTML=`<div class="screen">${header()}<div class="body">
-      <div class="result-label">${brand}</div><div class="scoreline">Your Brand Performance Score</div>
-      <div class="result-score">${overall}<small>/100</small></div>
-      <div class="result-summary">${interpret(overall,ds)}</div>
-      <div class="result-card">${dims.map((d,i)=>`<div class="result-row"><div class="result-top"><span>${d.name}</span><span>${ds[i]}</span></div><div class="bar"><span style="width:${ds[i]}%;background:${d.bar}"></span></div></div>`).join('')}</div>
-      <p>Your score is only the start. Your full diagnostic will show what’s driving it and where to focus next.</p>
-      <button class="primary" id="continue">View Test Email</button>
-    </div></div>`;
-    document.getElementById('continue').onclick=()=>{state='email';render();};
+
+    app.innerHTML=`
+      <div class="screen">
+
+        ${header()}
+
+        <div class="body">
+
+          <div class="result-label">
+            ${brand}
+          </div>
+
+          <div class="scoreline">
+            Your Brand Performance Score
+          </div>
+
+          <div class="result-score">
+            ${overall}
+            <small>/100</small>
+          </div>
+
+          <div class="result-summary">
+            ${interpret(overall,ds)}
+          </div>
+
+          <div class="result-card">
+
+            ${dims.map(
+              (d,i)=>`
+
+                <div class="result-row">
+
+                  <div class="result-top">
+                    <span>${d.name}</span>
+                    <span>${ds[i]}/100</span>
+                  </div>
+
+                  <div class="bar">
+                    <span style="
+                      width:${ds[i]}%;
+                      background:${d.bar};
+                    "></span>
+                  </div>
+
+                </div>
+
+              `
+            ).join('')}
+
+          </div>
+
+          <p>
+            See what’s behind your score, where the biggest opportunities lie and what to focus on next.
+          </p>
+
+          <button
+            class="primary"
+            id="continue"
+          >
+            Get Your Full Diagnostic
+          </button>
+
+        </div>
+
+      </div>
+    `;
+
+    document
+      .getElementById('continue')
+      .onclick=()=>{
+
+        state='email';
+        render();
+      };
   }
 
   function renderDone(){
-    app.innerHTML=`<div class="thankyou"><h1>Thank You</h1>
-      <p>Your Brand Performance Diagnostic is on its way to your inbox.</p>
-      <p>We’ll be in touch to talk you through the findings and what to focus on next.</p>
-      <img src="assets/Logo.png" alt="The Creative Lab">
-      <button class="restart" id="restart">Restart Diagnostic</button>
-    </div>`;
-    document.getElementById('restart').onclick=()=>{state='splash';idx=0;answers=Array(20).fill(null);email='';brand='';about={name:'',position:'',company:'',website:'',mobile:''};render();};
+
+    app.innerHTML=`
+      <div class="thankyou">
+
+        <h1>
+          Thank You
+        </h1>
+
+        <p>
+          Your personalised Brand Performance Diagnostic will be with you within the next two hours.
+        </p>
+
+        <p style="
+          font-size:16px;
+          line-height:1.45;
+          font-weight:400;
+        ">
+          If you don’t see it in your inbox, please check your junk folder.
+        </p>
+
+        <img
+          src="assets/Logo.png"
+          alt="The Creative Lab"
+        >
+
+        <button
+          class="restart"
+          id="restart"
+        >
+          Restart Diagnostic
+        </button>
+
+      </div>
+    `;
+
+    document
+      .getElementById('restart')
+      .onclick=()=>{
+
+        state='splash';
+        idx=0;
+
+        answers=
+          Array(20).fill(null);
+
+        email='';
+        brand='';
+
+        about={
+          name:'',
+          position:'',
+          company:'',
+          website:'',
+          mobile:''
+        };
+
+        render();
+      };
   }
 
   function render(){
-  app.classList.remove('email-mode');
 
-  if(state==='splash')renderSplash();
-  else if(state==='intro')renderIntro();
-  else if(state==='about')renderAbout();
-  else if(state==='questions')renderQuestions();
-  else if(state==='result')renderResult();
-  else if(state==='email')renderEmailPreview();
-  else renderDone();
-}
+    app.classList.remove(
+      'email-mode'
+    );
+
+    if(state==='splash'){
+
+      renderSplash();
+
+    }else if(state==='intro'){
+
+      renderIntro();
+
+    }else if(state==='about'){
+
+      renderAbout();
+
+    }else if(state==='questions'){
+
+      renderQuestions();
+
+    }else if(state==='result'){
+
+      renderResult();
+
+    }else if(state==='email'){
+
+      renderEmailPreview();
+
+    }else{
+
+      renderDone();
+    }
+  }
+
   render();
+
 })();
 </script>
+
 </body>
 </html>
