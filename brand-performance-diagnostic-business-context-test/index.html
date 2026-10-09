@@ -385,51 +385,222 @@
       const data=await response.json();
       if(!response.ok) throw new Error(data.error||'Unable to generate report.');
 
-      app.innerHTML=`<div class="screen">${header()}<div class="body">
-        <h2>Test email preview</h2>
-        <p class="test-note">Generated from ${brand}’s website and this diagnostic submission. No email has been sent.</p>
+      app.innerHTML=`
+<div class="screen">
+  ${header()}
+  <div class="body">
 
-        <div class="email-preview">
-          <div class="email-kicker">${brand}</div>
-          <p>Hi ${r.firstName},</p>
-          <p>Thank you for completing the Brand Performance Diagnostic.</p>
+    <h2>Test email preview</h2>
+    <p class="test-note">
+      Generated from ${brand}'s website and this diagnostic submission. No email has been sent.
+    </p>
 
-          <h3>Your Brand Performance Score</h3>
-          <div class="big-score">${a.overall}/100</div>
+    <div class="email-preview">
 
-          <div class="ai-report">
+      <div class="email-kicker">${brand}</div>
 
-  <h3>WHAT YOUR SCORE MEANS</h3>
-  <p>${escapeHtml(data.report.score_meaning || "")}</p>
+      <p>Hi ${r.firstName},</p>
 
-  <h3>WHAT STANDS OUT</h3>
-  <p>${escapeHtml(data.report.stands_out || "")}</p>
+      <p>Thank you for completing our Brand Performance Diagnostic.</p>
 
-  <h3>THE FIVE AREAS</h3>
+      <p>
+        We’ve reviewed your responses and looked at your brand to create the personalised report below.
+        It highlights what’s working, where growth may be getting constrained and where we think your attention should go next.
+      </p>
 
-  <h4>Strategic Fitness</h4>
-  <p>${escapeHtml(data.report.strategic_commentary || "")}</p>
+      <p>
+        The report is deliberately high level. The real value comes from looking at the findings in context
+        and deciding what to prioritise. That’s where our <strong>Now, Next and Nurture</strong> growth pathway comes in.
+      </p>
 
-  <h4>Consumer Intelligence</h4>
-  <p>${escapeHtml(data.report.consumer_commentary || "")}</p>
+      <p>But first, here’s what your diagnostic is telling us.</p>
 
-  <h4>Market Influence</h4>
-  <p>${escapeHtml(data.report.market_commentary || "")}</p>
-
-  <h4>Growth Engine</h4>
-  <p>${escapeHtml(data.report.growth_commentary || "")}</p>
-
-  <h4>Commercial Endurance</h4>
-  <p>${escapeHtml(data.report.commercial_commentary || "")}</p>
-
-  <h3>WHERE TO FOCUS NEXT</h3>
-  <p>${escapeHtml(data.report.focus_next || "")}</p>
-
-</div>
+      <div style="
+        background:#A8AEA0;
+        border-radius:14px;
+        padding:22px 24px;
+        margin:24px 0 28px;
+      ">
+        <div style="
+          font-size:14px;
+          font-weight:700;
+          margin-bottom:8px;
+        ">
+          Your Brand Performance Score
         </div>
 
-        <button class="primary" id="finish">Continue</button>
-      </div></div>`;
+        <div style="
+          display:flex;
+          align-items:flex-end;
+          justify-content:space-between;
+          gap:12px;
+        ">
+          <div>
+            <span style="
+              font-size:64px;
+              line-height:1;
+              font-weight:900;
+              color:#F5F0E8;
+            ">${a.overall}</span>
+            <span style="
+              font-size:34px;
+              line-height:1;
+              color:#343434;
+            ">/100</span>
+          </div>
+
+          <div style="
+            display:flex;
+            align-items:flex-end;
+            gap:6px;
+            padding-bottom:4px;
+          ">
+            <span style="display:block;width:18px;height:18px;background:#6B4D59"></span>
+            <span style="display:block;width:18px;height:34px;background:#E5DFD3"></span>
+            <span style="display:block;width:18px;height:50px;background:#E5DFD3"></span>
+            <span style="display:block;width:18px;height:66px;background:#E5DFD3"></span>
+            <span style="display:block;width:18px;height:82px;background:#E5DFD3"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ai-report">
+
+        <h3>WHAT YOUR SCORE MEANS</h3>
+        <p>${escapeHtml(data.report.score_meaning || "")}</p>
+
+        <div style="height:1px;background:#9d9a95;margin:22px 0;"></div>
+
+        <h3>WHAT STANDS OUT</h3>
+        <p>${escapeHtml(data.report.stands_out || "")}</p>
+
+        <div style="height:1px;background:#9d9a95;margin:22px 0;"></div>
+
+        <h3>THE FIVE AREAS</h3>
+
+        ${[
+          {
+            name:"Strategic Fitness",
+            score:a.ds[0],
+            colour:"#E5DFD3",
+            text:data.report.strategic_commentary
+          },
+          {
+            name:"Consumer Intelligence",
+            score:a.ds[1],
+            colour:"#D8DDD2",
+            text:data.report.consumer_commentary
+          },
+          {
+            name:"Market Influence",
+            score:a.ds[2],
+            colour:"#DED3D8",
+            text:data.report.market_commentary
+          },
+          {
+            name:"Growth Engine",
+            score:a.ds[3],
+            colour:"#E6D8C7",
+            text:data.report.growth_commentary
+          },
+          {
+            name:"Commercial Endurance",
+            score:a.ds[4],
+            colour:"#D8DDD2",
+            text:data.report.commercial_commentary
+          }
+        ].map(item => `
+          <div style="
+            display:grid;
+            grid-template-columns:64px 118px 1fr;
+            gap:12px;
+            align-items:center;
+            padding:16px 0;
+            border-bottom:1px solid #9d9a95;
+          ">
+
+            <div style="
+              width:56px;
+              height:56px;
+              border-radius:50%;
+              background:${item.colour};
+              display:flex;
+              flex-direction:column;
+              align-items:center;
+              justify-content:center;
+              line-height:1;
+            ">
+              <strong style="font-size:20px;">${item.score}</strong>
+              <span style="font-size:11px;margin-top:2px;">100</span>
+            </div>
+
+            <div style="
+              font-size:14px;
+              line-height:1.15;
+              font-weight:700;
+            ">
+              ${item.name}
+            </div>
+
+            <div style="
+              font-size:14px;
+              line-height:1.45;
+            ">
+              ${escapeHtml(item.text || "")}
+            </div>
+
+          </div>
+        `).join("")}
+
+        <h3 style="margin-top:28px;">WHERE TO FOCUS NEXT</h3>
+        <p>${escapeHtml(data.report.focus_next || "")}</p>
+
+        <div style="height:1px;background:#9d9a95;margin:22px 0;"></div>
+
+        <p>
+          We hope this gives you a useful view of where the brand stands today and,
+          more importantly, where the opportunity may lie.
+        </p>
+
+        <p>
+          If you’d like to talk it through, we’d be happy to arrange a no-obligation call
+          and explore what <strong>Now, Next and Nurture</strong> could look like for your business.
+        </p>
+
+        <div style="
+          margin-top:26px;
+          background:#D6D9D1;
+          border-radius:14px;
+          padding:22px 16px;
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          text-align:center;
+        ">
+
+          <div style="
+            padding:0 12px;
+            border-right:1px solid #8f918c;
+          ">
+            <strong>Michael Miley, CEO</strong><br>
+            michael@thec-lab.co.uk<br>
+            +44 (0)7860 441128
+          </div>
+
+          <div style="padding:0 12px;">
+            <strong>Paul Cope, MD</strong><br>
+            paul@thec-lab.co.uk<br>
+            +44 (0)7900 900704
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <button class="primary" id="finish">Continue</button>
+
+  </div>
+</div>`;
       document.getElementById('finish').onclick=()=>{state='done';render();};
     }catch(err){
       app.innerHTML=`<div class="screen">${header()}<div class="body">
