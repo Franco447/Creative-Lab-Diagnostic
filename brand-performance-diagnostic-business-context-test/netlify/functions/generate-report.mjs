@@ -117,56 +117,42 @@ Do not invent diagnostic labels such as:
 - "strategy-light"
 - or similar shorthand labels unless those exact terms are explicitly evidenced.
 
-REPORT STRUCTURE
+CONTENT REQUIREMENTS
 
-Write concise client-facing copy under exactly these headings, in this order:
-
-WHAT YOUR SCORE MEANS
-
+score_meaning:
 Maximum 70 words.
-
 Interpret the overall score and broad performance picture.
-
 Do not simply translate the number into a generic label.
-
 Do not invent a narrative beyond the evidence.
 
-WHAT STANDS OUT
-
+stands_out:
 Maximum 55 words.
-
 Identify the single most important pattern across the five areas.
-
 Prioritise a genuine imbalance, contradiction or constraint over generic strengths and weaknesses.
 
-THE FIVE AREAS
+strategic_commentary:
+Maximum 45 words.
+Interpret Strategic Fitness using the four individual answers and relevant verified website context.
 
-For each area below, include the area name, its score and one concise paragraph:
+consumer_commentary:
+Maximum 45 words.
+Interpret Consumer Intelligence using the four individual answers and relevant verified website context.
 
-Strategic Fitness
+market_commentary:
+Maximum 45 words.
+Interpret Market Influence using the four individual answers and relevant verified website context.
 
-Consumer Intelligence
+growth_commentary:
+Maximum 45 words.
+Interpret Growth Engine using the four individual answers and relevant verified website context.
 
-Market Influence
+commercial_commentary:
+Maximum 45 words.
+Interpret Commercial Endurance using the four individual answers and relevant verified website context.
 
-Growth Engine
-
-Commercial Endurance
-
-Maximum 45 words per area.
-
-Each area must be genuinely bespoke and based on the four responses and relevant verified website context.
-
-Once the insight has landed, stop.
-
-WHERE TO FOCUS NEXT
-
-Maximum 3 priorities.
-
-Each priority must be one sentence only.
-
+focus_next:
+Maximum 3 concise priorities.
 Keep these high level and commercially useful.
-
 Do not turn this into a consultancy plan.
 
 DIAGNOSTIC PRECEDENCE
@@ -174,13 +160,9 @@ DIAGNOSTIC PRECEDENCE
 When interpreting the overall pattern, use this order:
 
 1. Major imbalance between areas.
-
 2. Systemic weakness if four or five dimensions are below 50.
-
 3. Strong foundations but weak conversion or Growth Engine.
-
 4. Strong commercial engine but weak strategic or brand foundations.
-
 5. Relatively flat profile — describe the overall level rather than inventing a dramatic weakness.
 
 EVIDENCE DISCIPLINE
@@ -228,8 +210,8 @@ RULES
 - Be commercially intelligent, direct and constructive.
 - Keep the report useful but deliberately high level.
 - Avoid consultancy jargon, generic encouragement, inflated language and obvious AI phrasing.
-- No markdown tables.
-- Do not include a greeting, sign-off or subject line.
+
+Return ONLY valid JSON matching the requested schema.
 `.trim();
 
     const response = await fetch("https://api.openai.com/v1/responses", {
@@ -252,6 +234,54 @@ RULES
           }
         ],
 
+        text: {
+          format: {
+            type: "json_schema",
+            name: "brand_performance_report",
+            strict: true,
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                score_meaning: {
+                  type: "string"
+                },
+                stands_out: {
+                  type: "string"
+                },
+                strategic_commentary: {
+                  type: "string"
+                },
+                consumer_commentary: {
+                  type: "string"
+                },
+                market_commentary: {
+                  type: "string"
+                },
+                growth_commentary: {
+                  type: "string"
+                },
+                commercial_commentary: {
+                  type: "string"
+                },
+                focus_next: {
+                  type: "string"
+                }
+              },
+              required: [
+                "score_meaning",
+                "stands_out",
+                "strategic_commentary",
+                "consumer_commentary",
+                "market_commentary",
+                "growth_commentary",
+                "commercial_commentary",
+                "focus_next"
+              ]
+            }
+          }
+        },
+
         input: prompt
       })
     });
@@ -268,7 +298,7 @@ RULES
       });
     }
 
-    const report =
+    const outputText =
       data.output_text ||
       (data.output || [])
         .flatMap(item => item.content || [])
@@ -277,9 +307,19 @@ RULES
         .join("\n")
         .trim();
 
-    if (!report) {
+    if (!outputText) {
       return jsonResponse(502, {
-        error: "No report text was returned."
+        error: "No report data was returned."
+      });
+    }
+
+    let report;
+
+    try {
+      report = JSON.parse(outputText);
+    } catch {
+      return jsonResponse(502, {
+        error: "The report data could not be parsed."
       });
     }
 
