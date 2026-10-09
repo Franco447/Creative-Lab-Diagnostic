@@ -348,7 +348,35 @@
           <h3>Your Brand Performance Score</h3>
           <div class="big-score">${a.overall}/100</div>
 
-          <div class="ai-report">${escapeHtml(data.report)}</div>
+          <div class="ai-report">
+
+  <h3>WHAT YOUR SCORE MEANS</h3>
+  <p>${escapeHtml(data.report.score_meaning || "")}</p>
+
+  <h3>WHAT STANDS OUT</h3>
+  <p>${escapeHtml(data.report.stands_out || "")}</p>
+
+  <h3>THE FIVE AREAS</h3>
+
+  <h4>Strategic Fitness</h4>
+  <p>${escapeHtml(data.report.strategic_commentary || "")}</p>
+
+  <h4>Consumer Intelligence</h4>
+  <p>${escapeHtml(data.report.consumer_commentary || "")}</p>
+
+  <h4>Market Influence</h4>
+  <p>${escapeHtml(data.report.market_commentary || "")}</p>
+
+  <h4>Growth Engine</h4>
+  <p>${escapeHtml(data.report.growth_commentary || "")}</p>
+
+  <h4>Commercial Endurance</h4>
+  <p>${escapeHtml(data.report.commercial_commentary || "")}</p>
+
+  <h3>WHERE TO FOCUS NEXT</h3>
+  <p>${escapeHtml(data.report.focus_next || "")}</p>
+
+</div>
         </div>
 
         <button class="primary" id="finish">Continue</button>
