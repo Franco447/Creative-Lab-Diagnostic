@@ -430,6 +430,94 @@
       line-height:1.5;
     }
 
+    /* SCORE PANEL MATCHING XD REFERENCE */
+
+    .score-panel{
+      background:#A8AEA0;
+      border-radius:18px;
+      padding:22px 30px 24px;
+      margin:22px 0 30px;
+    }
+
+    .score-panel-title{
+      font-size:17px;
+      line-height:1.2;
+      font-weight:800;
+      color:#242424;
+      margin:0 0 16px;
+    }
+
+    .score-panel-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:24px;
+    }
+
+    .score-panel-score{
+      display:flex;
+      align-items:flex-end;
+      gap:12px;
+      min-width:0;
+    }
+
+    .score-panel-number{
+      font-size:88px;
+      line-height:.82;
+      font-weight:900;
+      color:#F5F0E8;
+      letter-spacing:-.055em;
+    }
+
+    .score-panel-outof{
+      font-size:56px;
+      line-height:.85;
+      font-weight:400;
+      color:#111;
+      letter-spacing:-.04em;
+      margin-bottom:2px;
+      white-space:nowrap;
+    }
+
+    .score-panel-bars{
+      display:flex;
+      align-items:flex-end;
+      justify-content:flex-end;
+      gap:7px;
+      flex-shrink:0;
+      padding-right:4px;
+    }
+
+    .score-panel-bars span{
+      display:block;
+      width:21px;
+    }
+
+    .score-panel-bars .bar-0{
+      height:21px;
+      background:#6B4D59;
+    }
+
+    .score-panel-bars .bar-1{
+      height:43px;
+      background:#E5DFD3;
+    }
+
+    .score-panel-bars .bar-2{
+      height:66px;
+      background:#E5DFD3;
+    }
+
+    .score-panel-bars .bar-3{
+      height:89px;
+      background:#E5DFD3;
+    }
+
+    .score-panel-bars .bar-4{
+      height:112px;
+      background:#E5DFD3;
+    }
+
     @media(min-width:700px){
       body{
         background:#f6f6f4;
@@ -445,6 +533,48 @@
       .splash,
       .thankyou{
         min-height:820px;
+      }
+    }
+
+    @media(max-width:520px){
+      .score-panel{
+        padding:20px;
+      }
+
+      .score-panel-number{
+        font-size:62px;
+      }
+
+      .score-panel-outof{
+        font-size:38px;
+      }
+
+      .score-panel-bars{
+        gap:5px;
+      }
+
+      .score-panel-bars span{
+        width:15px;
+      }
+
+      .score-panel-bars .bar-0{
+        height:16px;
+      }
+
+      .score-panel-bars .bar-1{
+        height:31px;
+      }
+
+      .score-panel-bars .bar-2{
+        height:46px;
+      }
+
+      .score-panel-bars .bar-3{
+        height:61px;
+      }
+
+      .score-panel-bars .bar-4{
+        height:76px;
       }
     }
 
@@ -1318,90 +1448,32 @@
                 But first, here’s what your diagnostic is telling us.
               </p>
 
-              <div style="
-                background:#A8AEA0;
-                border-radius:14px;
-                padding:24px 28px;
-                margin:28px 0 34px;
-              ">
+              <div class="score-panel">
 
-                <div style="
-                  font-size:14px;
-                  font-weight:700;
-                  margin-bottom:10px;
-                ">
+                <div class="score-panel-title">
                   Your Brand Performance Score
                 </div>
 
-                <div style="
-                  display:flex;
-                  justify-content:space-between;
-                  align-items:flex-end;
-                  gap:20px;
-                ">
+                <div class="score-panel-row">
 
-                  <div>
+                  <div class="score-panel-score">
 
-                    <span style="
-                      font-size:68px;
-                      line-height:1;
-                      font-weight:900;
-                      color:#F5F0E8;
-                    ">
+                    <div class="score-panel-number">
                       ${a.overall}
-                    </span>
+                    </div>
 
-                    <span style="
-                      font-size:34px;
-                      line-height:1;
-                      color:#343434;
-                    ">
+                    <div class="score-panel-outof">
                       /100
-                    </span>
+                    </div>
 
                   </div>
 
-                  <div style="
-                    display:flex;
-                    align-items:flex-end;
-                    gap:6px;
-                  ">
-
-                    <span style="
-                      width:19px;
-                      height:19px;
-                      background:#6B4D59;
-                      display:block;
-                    "></span>
-
-                    <span style="
-                      width:19px;
-                      height:36px;
-                      background:#E5DFD3;
-                      display:block;
-                    "></span>
-
-                    <span style="
-                      width:19px;
-                      height:52px;
-                      background:#E5DFD3;
-                      display:block;
-                    "></span>
-
-                    <span style="
-                      width:19px;
-                      height:68px;
-                      background:#E5DFD3;
-                      display:block;
-                    "></span>
-
-                    <span style="
-                      width:19px;
-                      height:84px;
-                      background:#E5DFD3;
-                      display:block;
-                    "></span>
-
+                  <div class="score-panel-bars" aria-hidden="true">
+                    <span class="bar-0"></span>
+                    <span class="bar-1"></span>
+                    <span class="bar-2"></span>
+                    <span class="bar-3"></span>
+                    <span class="bar-4"></span>
                   </div>
 
                 </div>
