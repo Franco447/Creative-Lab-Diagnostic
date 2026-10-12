@@ -323,9 +323,6 @@
     .bar span{
       display:block;
       height:100%;
-      border:none;
-      outline:none;
-      box-shadow:none;
     }
 
     .thankyou{
@@ -377,7 +374,6 @@
       font-size:12px;
       text-transform:uppercase;
       letter-spacing:.12em;
-      color:#343434;
       font-weight:600;
       margin-bottom:24px;
     }
@@ -430,7 +426,7 @@
       line-height:1.5;
     }
 
-    /* SCORE PANEL — AMENDED TO MATCH XD REFERENCE */
+    /* SCORE PANEL */
 
     .score-panel{
       background:#A8AEA0;
@@ -458,7 +454,6 @@
       display:flex;
       align-items:flex-end;
       gap:8px;
-      min-width:0;
     }
 
     .score-panel-number{
@@ -473,7 +468,7 @@
       font-size:44px;
       line-height:.9;
       font-weight:300;
-      color:#111111;
+      color:#111;
       letter-spacing:-.04em;
       margin-bottom:2px;
       white-space:nowrap;
@@ -482,7 +477,6 @@
     .score-panel-bars{
       display:flex;
       align-items:flex-end;
-      justify-content:flex-end;
       gap:6px;
       flex-shrink:0;
       padding:0 2px 1px 0;
@@ -516,6 +510,51 @@
     .score-panel-bars .bar-4{
       height:86px;
       background:#E5DFD3;
+    }
+
+    /* NEW REPORT ELEMENTS */
+
+    .area-headline{
+      font-size:15px;
+      line-height:1.3;
+      font-weight:700;
+      margin:0 0 7px;
+    }
+
+    .pathway{
+      margin-top:22px;
+    }
+
+    .pathway-item{
+      padding:18px 0;
+      border-top:1px solid #9d9a95;
+    }
+
+    .pathway-label{
+      font-size:15px;
+      line-height:1;
+      font-weight:800;
+      margin-bottom:8px;
+    }
+
+    .book-call{
+      display:block;
+      width:220px;
+      min-height:46px;
+      margin:28px auto;
+      border:0;
+      border-radius:3px;
+      background:#6B4D59;
+      color:#fff;
+      font-size:16px;
+      font-weight:700;
+      cursor:default;
+    }
+
+    .signoff{
+      margin:26px 0;
+      font-size:14px;
+      line-height:1.5;
     }
 
     @media(min-width:700px){
@@ -701,11 +740,13 @@
 
     app.innerHTML=`
       <div class="splash">
+
         <img src="assets/Logo.png" alt="The Creative Lab">
 
         <button class="primary" id="start">
           Start Diagnostic
         </button>
+
       </div>
     `;
 
@@ -719,6 +760,7 @@
 
     app.innerHTML=`
       <div class="screen">
+
         ${header()}
 
         <div class="body">
@@ -759,6 +801,7 @@
           <div id="err" class="error"></div>
 
         </div>
+
       </div>
     `;
 
@@ -781,6 +824,7 @@
 
     app.innerHTML=`
       <div class="screen">
+
         ${header()}
 
         <div class="body">
@@ -828,6 +872,7 @@
           <div id="err" class="error"></div>
 
         </div>
+
       </div>
     `;
 
@@ -898,10 +943,12 @@
                   </div>
 
                   <div class="scale-labels">
+
                     ${Array.from(
                       {length:10},
                       (_,n)=>`<span>${n}</span>`
                     ).join('')}
+
                   </div>
 
                   <div class="scale-btns">
@@ -1074,30 +1121,6 @@
     const highs=
       ds.filter(v=>v>=70).length;
 
-    const qDetails=
-      answers.map((score,i)=>{
-
-        const di=Math.floor(i/4);
-        const qi=i%4;
-
-        return {
-          score,
-          dimension:dims[di].name,
-          question:dims[di].qs[qi],
-          index:i
-        };
-      });
-
-    const lowestQuestions=
-      [...qDetails]
-        .sort((a,b)=>a.score-b.score)
-        .slice(0,3);
-
-    const highestQuestions=
-      [...qDetails]
-        .sort((a,b)=>b.score-a.score)
-        .slice(0,3);
-
     let pattern='mixed performance';
 
     if(lows>=4){
@@ -1139,9 +1162,7 @@
       gap,
       lows,
       highs,
-      pattern,
-      lowestQuestions,
-      highestQuestions
+      pattern
     };
   }
 
@@ -1208,7 +1229,9 @@
       </div>
     `;
 
+
     const payload={
+
       client:{
         contact_name:about.name,
         position:about.position,
@@ -1217,6 +1240,7 @@
       },
 
       diagnostic:{
+
         overall_score:a.overall,
 
         dimensions:
@@ -1258,6 +1282,7 @@
       }
     };
 
+
     try{
 
       const response=
@@ -1276,8 +1301,10 @@
           }
         );
 
+
       const data=
         await response.json();
+
 
       if(!response.ok){
 
@@ -1287,46 +1314,64 @@
         );
       }
 
+
       const report=
         data.report || {};
 
+
       const areaItems=[
+
         {
           name:'Strategic Fitness',
           score:a.ds[0],
           colour:'#E5DFD3',
+          headline:
+            report.strategic_headline || '',
           text:
             report.strategic_commentary || ''
         },
+
         {
           name:'Consumer Intelligence',
           score:a.ds[1],
           colour:'#D8DDD2',
+          headline:
+            report.consumer_headline || '',
           text:
             report.consumer_commentary || ''
         },
+
         {
           name:'Market Influence',
           score:a.ds[2],
           colour:'#DED3D8',
+          headline:
+            report.market_headline || '',
           text:
             report.market_commentary || ''
         },
+
         {
           name:'Growth Engine',
           score:a.ds[3],
           colour:'#E6D8C7',
+          headline:
+            report.growth_headline || '',
           text:
             report.growth_commentary || ''
         },
+
         {
           name:'Commercial Endurance',
           score:a.ds[4],
           colour:'#D8DDD2',
+          headline:
+            report.commercial_headline || '',
           text:
             report.commercial_commentary || ''
         }
       ];
+
 
       const areaRows=
         areaItems
@@ -1337,7 +1382,7 @@
               grid-template-columns:82px 1fr;
               gap:18px;
               align-items:start;
-              padding:22px 0;
+              padding:24px 0;
               border-bottom:1px solid #9d9a95;
             ">
 
@@ -1370,10 +1415,10 @@
 
               </div>
 
+
               <div style="
                 display:flex;
                 flex-direction:column;
-                gap:7px;
                 min-width:0;
               ">
 
@@ -1381,17 +1426,19 @@
                   font-size:15px;
                   line-height:1.2;
                   font-weight:700;
-                  margin:0;
-                  padding:0;
+                  margin:0 0 7px;
                 ">
                   ${item.name}
+                </div>
+
+                <div class="area-headline">
+                  ${escapeHtml(item.headline)}
                 </div>
 
                 <div style="
                   font-size:14px;
                   line-height:1.5;
                   margin:0;
-                  padding:0;
                 ">
                   ${escapeHtml(item.text)}
                 </div>
@@ -1402,6 +1449,7 @@
 
           `)
           .join('');
+
 
       app.innerHTML=`
         <div class="screen">
@@ -1419,24 +1467,29 @@
               No email has been sent.
             </p>
 
+
             <div class="email-preview">
 
               <div class="email-kicker">
                 ${brand}
               </div>
 
+
               <p>
                 Hi ${r.firstName},
               </p>
+
 
               <p>
                 Thank you for completing our Brand Performance Diagnostic.
               </p>
 
+
               <p>
                 We’ve reviewed your responses and looked at your brand to create the personalised report below.
                 It highlights what’s working, where growth may be getting constrained and where we think your attention should go next.
               </p>
+
 
               <p>
                 The report is deliberately high level.
@@ -1444,9 +1497,11 @@
                 That’s where our <strong>Now, Next and Nurture</strong> growth pathway comes in.
               </p>
 
+
               <p>
                 But first, here’s what your diagnostic is telling us.
               </p>
+
 
               <div class="score-panel">
 
@@ -1468,7 +1523,11 @@
 
                   </div>
 
-                  <div class="score-panel-bars" aria-hidden="true">
+
+                  <div
+                    class="score-panel-bars"
+                    aria-hidden="true"
+                  >
                     <span class="bar-0"></span>
                     <span class="bar-1"></span>
                     <span class="bar-2"></span>
@@ -1479,6 +1538,7 @@
                 </div>
 
               </div>
+
 
               <div class="ai-report">
 
@@ -1492,11 +1552,13 @@
                   )}
                 </p>
 
+
                 <div style="
                   height:1px;
                   background:#9d9a95;
                   margin:28px 0;
                 "></div>
+
 
                 <h3>
                   WHAT STANDS OUT
@@ -1508,29 +1570,84 @@
                   )}
                 </p>
 
+
                 <div style="
                   height:1px;
                   background:#9d9a95;
                   margin:28px 0;
                 "></div>
 
+
                 <h3>
                   THE FIVE AREAS
                 </h3>
 
+
                 ${areaRows}
 
+
                 <h3 style="
-                  margin-top:30px;
+                  margin-top:32px;
                 ">
                   WHERE TO FOCUS NEXT
                 </h3>
 
+
                 <p>
                   ${escapeHtml(
-                    report.focus_next || ''
+                    report.focus_next_intro || ''
                   )}
                 </p>
+
+
+                <div class="pathway">
+
+                  <div class="pathway-item">
+
+                    <div class="pathway-label">
+                      NOW
+                    </div>
+
+                    <p>
+                      ${escapeHtml(
+                        report.now || ''
+                      )}
+                    </p>
+
+                  </div>
+
+
+                  <div class="pathway-item">
+
+                    <div class="pathway-label">
+                      NEXT
+                    </div>
+
+                    <p>
+                      ${escapeHtml(
+                        report.next || ''
+                      )}
+                    </p>
+
+                  </div>
+
+
+                  <div class="pathway-item">
+
+                    <div class="pathway-label">
+                      NURTURE
+                    </div>
+
+                    <p>
+                      ${escapeHtml(
+                        report.nurture || ''
+                      )}
+                    </p>
+
+                  </div>
+
+                </div>
+
 
                 <div style="
                   height:1px;
@@ -1538,20 +1655,38 @@
                   margin:30px 0;
                 "></div>
 
+
                 <p>
                   We hope this gives you a useful view of where the brand stands today and,
                   more importantly, where the opportunity may lie.
                 </p>
 
+
                 <p>
-                  If you’d like to talk it through,
-                  we’d be happy to arrange a no-obligation call and explore what
-                  <strong>Now, Next and Nurture</strong>
-                  could look like for your business.
+                  If you’re keen to understand how these findings could shape your
+                  <strong>Growth Pathway</strong> — as well as explore what
+                  <strong>Now / Next / Nurture</strong> could look like for your business —
+                  we’d be happy to arrange a no-obligation call.
                 </p>
 
+
+                <button
+                  class="book-call"
+                  type="button"
+                  aria-label="Book a Call"
+                >
+                  Book a Call
+                </button>
+
+
+                <div class="signoff">
+                  Kind regards,<br>
+                  <strong>The Creative Lab</strong>
+                </div>
+
+
                 <div style="
-                  margin-top:30px;
+                  margin-top:24px;
                   background:#D6D9D1;
                   border-radius:14px;
                   padding:24px 20px;
@@ -1582,6 +1717,7 @@
 
                   </div>
 
+
                   <div style="
                     padding:0 18px;
                   ">
@@ -1606,6 +1742,7 @@
 
             </div>
 
+
             <button
               class="primary"
               id="finish"
@@ -1618,6 +1755,7 @@
         </div>
       `;
 
+
       document
         .getElementById('finish')
         .onclick=()=>{
@@ -1625,6 +1763,7 @@
           state='done';
           render();
         };
+
 
     }catch(err){
 
@@ -1666,6 +1805,7 @@
         </div>
       `;
 
+
       document
         .getElementById('backToResult')
         .onclick=()=>{
@@ -1675,6 +1815,7 @@
         };
     }
   }
+
 
   function escapeHtml(value){
 
@@ -1690,6 +1831,7 @@
         })[ch]
       );
   }
+
 
   function renderResult(){
 
@@ -1761,6 +1903,7 @@
       </div>
     `;
 
+
     document
       .getElementById('continue')
       .onclick=()=>{
@@ -1769,6 +1912,7 @@
         render();
       };
   }
+
 
   function renderDone(){
 
@@ -1806,6 +1950,7 @@
       </div>
     `;
 
+
     document
       .getElementById('restart')
       .onclick=()=>{
@@ -1831,32 +1976,42 @@
       };
   }
 
+
   function render(){
 
     app.classList.remove('email-mode');
 
+
     if(state==='splash'){
+
       renderSplash();
 
     }else if(state==='intro'){
+
       renderIntro();
 
     }else if(state==='about'){
+
       renderAbout();
 
     }else if(state==='questions'){
+
       renderQuestions();
 
     }else if(state==='result'){
+
       renderResult();
 
     }else if(state==='email'){
+
       renderEmailPreview();
 
     }else{
+
       renderDone();
     }
   }
+
 
   render();
 
