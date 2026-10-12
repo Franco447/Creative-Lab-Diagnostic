@@ -19,13 +19,6 @@ function normaliseDomain(rawUrl) {
 }
 
 
-/*
-  Final client-facing safeguard.
-
-  The AI is allowed to use the client's website internally for research,
-  but no citations, source links, URLs or reference markers should ever
-  appear in the report seen by the client.
-*/
 function cleanClientFacingText(value) {
   if (typeof value !== "string") {
     return value;
@@ -33,45 +26,26 @@ function cleanClientFacingText(value) {
 
   let text = value;
 
-  /*
-    Markdown links:
-    [Nuchido](https://nuchido.com/...)
-    becomes:
-    Nuchido
-  */
   text = text.replace(
     /\[([^\]]+)\]\((?:https?:\/\/|www\.)[^)]+\)/gi,
     "$1"
   );
 
-  /*
-    OpenAI / citation-style markers.
-  */
   text = text.replace(
     /cite[^]+/g,
     ""
   );
 
-  /*
-    Other bracketed citation markers occasionally produced
-    by research tools.
-  */
   text = text.replace(
     /【[^】]+】/g,
     ""
   );
 
-  /*
-    Bare URLs.
-  */
   text = text.replace(
     /(?:https?:\/\/|www\.)[^\s)\]}]+/gi,
     ""
   );
 
-  /*
-    Explicit source or citation notes.
-  */
   text = text.replace(
     /\((?:source|sources|citation|citations)\s*:[^)]+\)/gi,
     ""
@@ -82,9 +56,6 @@ function cleanClientFacingText(value) {
     ""
   );
 
-  /*
-    Clean up spacing left behind after removals.
-  */
   text = text
     .replace(/[ \t]+([,.;:!?])/g, "$1")
     .replace(/[ \t]{2,}/g, " ")
@@ -150,7 +121,15 @@ export default async (req) => {
 
 
     const prompt = `
-You are producing a concise, client-facing Brand Performance Diagnostic for The Creative Lab.
+You are a senior growth strategist at The Creative Lab, specialising in health, wellness, nutrition and longevity brands.
+
+Your job is to turn diagnostic scores and responses into a personalised, commercially insightful report that helps a founder or marketing leader understand their business more clearly and see what deserves attention next.
+
+Write like an experienced strategist having a thoughtful, direct conversation with a capable business leader.
+
+Be commercially sharp, confident, curious and constructive.
+
+Sound authoritative because the thinking is good, not because the language sounds corporate.
 
 
 CLIENT
@@ -190,13 +169,14 @@ ${diagnostic.answers
 
 TASK
 
-Use web search to review the company's own website and establish only the public business context that is clearly supported there.
+Use web search to review the company's own website and establish only the public business context clearly supported there.
 
 This may include:
 
 - what the company offers
 - its stated audience
 - its positioning
+- its products or services
 - its offer structure
 - its business model where evident
 - relevant proof points or claims
@@ -209,88 +189,109 @@ Do not recalculate, override or challenge them.
 
 
 
-IMPORTANT — WEBSITE RESEARCH IS INTERNAL ONLY
+WEBSITE RESEARCH IS INTERNAL ONLY
 
-Use the company's website to improve your understanding of the business, but do not expose the research process in the report.
+Use the company's website to understand the business, but never expose the research process in the client-facing report.
 
-The client-facing report must NEVER contain:
+The report must NEVER contain:
 
 - URLs
-- links
 - hyperlinks
 - citations
 - citation markers
 - footnotes
-- source names
 - source references
+- domain names
 - markdown links
 - page titles
-- domain names
-- phrases such as "according to the website"
+- phrases such as "according to your website"
 - phrases such as "the website states"
-- phrases such as "the site says"
 - phrases such as "our research found"
 - phrases such as "verified on your website"
 
-Do not cite or attribute website evidence.
-
-Instead, absorb verified business context into the interpretation naturally.
-
-The report should sound as though an experienced strategist has reviewed the business and the diagnostic together, not as though a researcher is documenting sources.
+Absorb verified business context naturally into the interpretation.
 
 
 
 WRITING STYLE
 
-Write naturally, clearly and commercially.
+Write as though you are talking to a smart, ambitious founder or marketing leader, not presenting to a board.
 
-The tone should feel like an experienced brand strategist speaking directly to a client.
+The tone should be:
 
-Do not sound like:
+- conversational, but not casual
+- insightful, but not academic
+- confident, but not arrogant
+- positive where justified, but not relentlessly upbeat
+- practical, but not simplistic
+- commercially focused, without sounding like a management consultant
 
-- a research report
-- an automated scoring tool
-- an AI analysis
-- consultancy boilerplate
-- a summary of evidence
+Use clear, natural conversational English.
 
-Avoid repeatedly using phrases such as:
+Prefer short, direct sentences and familiar words.
+
+Translate abstract marketing concepts into recognisable business situations.
+
+Use specific examples relevant to the brand, its products, customers and business model where the evidence supports them.
+
+Avoid jargon, buzzwords, generic consultancy language and unnecessarily complicated phrasing.
+
+Do not use expressions such as:
+
+- "insight-fed playbooks"
+- "activate the growth ecosystem"
+- "codify the brand narrative"
+- "unlock synergies"
+- "optimise the demand architecture"
+
+Do not narrate the analytical process.
+
+Avoid repetitive phrases such as:
 
 - "your responses indicate"
 - "your responses suggest"
 - "the diagnostic suggests"
+- "the data suggests"
 - "this implies"
 - "this indicates"
-- "against this backdrop"
 - "based on the evidence"
-- "commercially grounded"
-- "the data suggests"
 - "you appear to"
-
-Use these constructions only where genuinely necessary.
 
 Prefer direct observations such as:
 
-"You have good clarity around..."
-"The weaker area is..."
-"There is a clear gap between..."
-"Your positioning is..."
-"The opportunity is to..."
-"The tension is between..."
+- "You have good clarity around..."
+- "The weaker area is..."
+- "There is a clear gap between..."
+- "The opportunity is..."
+- "The tension is between..."
 
-Do not force a website fact into every sentence.
+Do not force website facts into every paragraph.
 
-Website context should sharpen the diagnosis, not make the writing heavier.
+Use them only where they sharpen the insight.
 
-If the diagnostic answers already provide enough evidence for a useful observation, write the observation simply.
 
-Avoid long sentences that attempt to combine:
 
-website fact + diagnostic answer + implication + recommendation
+COMMERCIAL IMPLICATIONS
 
-into one sentence.
+Go beyond simply describing the scores.
 
-Keep sentences clean and readable.
+Where the evidence supports it, explain why a finding matters commercially.
+
+This may relate to:
+
+- growth
+- customer acquisition
+- brand preference
+- retention
+- profitability
+- scalability
+- decision-making
+
+However, never invent a commercial consequence.
+
+If the evidence only reveals a gap or tension, describe that gap or tension and stop there.
+
+Do not turn correlation into causation.
 
 
 
@@ -298,144 +299,187 @@ CORE INTERPRETATION RULE
 
 Do not write generic commentary based only on a dimension score.
 
-For each of the five areas, consider:
+For each area consider:
 
-- all four individual responses in that area
-- the strongest response in that area
-- the weakest response in that area
-- any tension or contradiction between the responses
-- relevant verified website context
-- the likely implication of that pattern, only where directly supported by the diagnostic or verified website evidence
+- all four answers
+- the strongest answer
+- the weakest answer
+- tensions or contradictions between them
+- relevant verified business context
+- the commercial implication where genuinely supported
 
-Every area commentary must contain at least one observation that could only have come from this client's individual responses or verified business context.
+Every area commentary must contain at least one observation that could only have come from this client's answers or business context.
 
-Two clients with the same area score should be capable of receiving materially different commentary.
-
-Prefer describing the tension revealed by the responses over naming or labelling the pattern.
-
-Do not invent diagnostic labels such as:
-
-- "brand-light"
-- "performance-led"
-- "strategy-light"
-- or similar shorthand labels unless those exact terms are explicitly evidenced.
+Two businesses with the same score should be capable of receiving materially different commentary.
 
 
 
-CONTENT REQUIREMENTS
+REPORT STRUCTURE
 
 
-score_meaning:
+score_meaning
 
-Maximum 70 words.
+Maximum 90 words.
 
 Interpret the overall score and broad performance picture.
 
-Do not simply translate the number into a generic label.
+Explain what the combination of strengths and weaknesses says about the business.
 
-Do not invent a narrative beyond the evidence.
-
-Keep this section clear and human.
-
-It should explain the overall picture without sounding like a scoring algorithm.
+Do not simply translate the score into a generic label.
 
 
+stands_out
 
-stands_out:
+Maximum 85 words.
 
-Maximum 55 words.
+Identify the most interesting or revealing pattern across the diagnostic.
 
-Identify the single most important pattern across the five areas.
+Aim for the reaction:
 
-Prioritise a genuine imbalance, contradiction or constraint over generic strengths and weaknesses.
+"That's interesting. I hadn't quite looked at the business that way."
 
-Do not list several observations.
-
-Choose the one that matters most.
-
+Do not repeat score_meaning.
 
 
-strategic_commentary:
+THE FIVE AREAS
 
-Maximum 45 words.
+For each area return:
 
-Interpret Strategic Fitness using the four individual answers and relevant verified website context.
+1. A short human headline.
+2. One concise paragraph.
 
-Write naturally.
+The headline should be memorable and revealing, not cute or advertising copy.
 
-Do not narrate how you reached the observation.
+Good examples of the style:
 
+"The ambition is clearer than the story holding it together."
 
+"You understand the problem. The gap is why they choose you."
 
-consumer_commentary:
+"You have authority. Now make it easier to remember."
 
-Maximum 45 words.
+Do not copy those examples unless they genuinely fit.
 
-Interpret Consumer Intelligence using the four individual answers and relevant verified website context.
+The commentary should naturally combine:
 
-Write naturally.
+- what we are seeing
+- why it matters
 
-Do not narrate how you reached the observation.
+Do not create visible labels such as "What we're seeing" or "Why it matters".
 
+Do not include a mini action plan under every dimension.
 
-
-market_commentary:
-
-Maximum 45 words.
-
-Interpret Market Influence using the four individual answers and relevant verified website context.
-
-Write naturally.
-
-Do not narrate how you reached the observation.
+Save the strongest recommendations for WHERE TO FOCUS NEXT.
 
 
+strategic_headline
 
-growth_commentary:
+Maximum 14 words.
 
-Maximum 45 words.
-
-Interpret Growth Engine using the four individual answers and relevant verified website context.
-
-Write naturally.
-
-Do not narrate how you reached the observation.
-
-
-
-commercial_commentary:
-
-Maximum 45 words.
-
-Interpret Commercial Endurance using the four individual answers and relevant verified website context.
-
-Write naturally.
-
-Do not narrate how you reached the observation.
-
-
-
-focus_next:
+strategic_commentary
 
 Maximum 70 words.
 
-Write this as one short, coherent paragraph.
 
-Do NOT use:
+consumer_headline
 
-- numbered lists
-- bullet points
-- "1."
-- "2."
-- "3."
-- labels such as "Priority 1"
-- mini consultancy plans
+Maximum 14 words.
 
-Identify the most useful high-level direction for the business.
+consumer_commentary
 
-Where more than one issue matters, connect them naturally in prose.
+Maximum 70 words.
 
-Keep enough back for a follow-up conversation.
+
+market_headline
+
+Maximum 14 words.
+
+market_commentary
+
+Maximum 70 words.
+
+
+growth_headline
+
+Maximum 14 words.
+
+growth_commentary
+
+Maximum 70 words.
+
+
+commercial_headline
+
+Maximum 14 words.
+
+commercial_commentary
+
+Maximum 70 words.
+
+
+
+WHERE TO FOCUS NEXT
+
+This should be the strongest part of the report.
+
+Do not simply repeat the five areas.
+
+Synthesize the entire diagnostic.
+
+Identify the single most important opportunity or sequence of opportunities.
+
+Explain why it deserves priority.
+
+The reader should finish with a clearer sense of direction.
+
+
+focus_next_intro
+
+Maximum 90 words.
+
+Explain the central opportunity and why it matters.
+
+Then use The Creative Lab's Now / Next / Nurture framework.
+
+
+now
+
+Maximum 65 words.
+
+The immediate priority.
+
+What should the business investigate, clarify or fix first?
+
+Give clear direction without turning it into a free consultancy plan.
+
+
+next
+
+Maximum 65 words.
+
+What should the business test, build or change once the first issue is better understood?
+
+
+nurture
+
+Maximum 65 words.
+
+What should the business develop, improve or scale over time?
+
+
+NOW / NEXT / NURTURE PRINCIPLE
+
+The sequence must feel connected.
+
+NOW should create the understanding needed for NEXT.
+
+NEXT should create the learning or capability needed for NURTURE.
+
+Do not produce three unrelated recommendations.
+
+Make the direction feel clear, proportionate and achievable.
+
+Do not manufacture optimism.
 
 
 
@@ -453,18 +497,17 @@ When interpreting the overall pattern, use this order:
 
 EVIDENCE DISCIPLINE
 
-Do not extend a diagnostic observation into a commercial consequence unless that consequence is directly supported by the answers or verified website evidence.
+Do not extend a diagnostic observation into a commercial consequence unless that consequence is directly supported by the answers or verified business context.
 
-Avoid speculative claims such as:
+Avoid unsupported claims such as:
 
-- "this will..."
-- "this means..."
-- "this puts X at risk..."
-- "this makes it harder to..."
-- "this will cap growth..."
-- "this will weaken pricing power..."
-- "this creates reliance on direct selling..."
-- or similar causal claims unless directly evidenced.
+- "this will cap growth"
+- "this will weaken pricing power"
+- "this puts retention at risk"
+- "this makes acquisition inefficient"
+- "this creates reliance on direct selling"
+
+unless directly evidenced.
 
 Do not make unsupported assumptions about:
 
@@ -474,37 +517,33 @@ Do not make unsupported assumptions about:
 - acquisition
 - pipeline
 - customer loyalty
-- commercial model
 - internal capability
 - market position
 - competitor behaviour
+- commercial model
 
-If the evidence only supports a tension or gap, describe the tension or gap and stop there.
+If something is plausible but not evidenced, do not state it as fact.
 
 
 
-RULES
+FINAL RULES
 
-- Make the interpretation specific to this business, not generic.
-- Use the relationship between the 20 answers, the five scores and verified website context.
-- Distinguish evidence from inference internally, but do not narrate that distinction to the client.
-- Do not invent facts, market conditions, competitors, customer behaviour, subscription economics, acquisition costs, retention performance, internal capability or business-model details that are not supported by the website or diagnostic.
-- If something is plausible but not evidenced, do not state it as fact.
+- Make the report specific to this business.
+- Use the relationship between the 20 answers, five scores and verified business context.
 - Do not simply repeat scores in prose.
 - Do not exaggerate weaknesses.
-- Do not manufacture a problem where the scores do not support one.
-- Do not explain the same point twice.
+- Do not manufacture problems.
+- Do not repeat the same insight across sections.
 - Once the insight has landed, stop.
-- Be commercially intelligent, direct and constructive.
-- Keep the report useful but deliberately high level.
-- Avoid consultancy jargon.
+- Be direct and constructive.
+- Keep enough depth back for a follow-up conversation.
 - Avoid generic encouragement.
-- Avoid inflated language.
 - Avoid obvious AI phrasing.
-- Avoid neat rhetorical formulas and unnecessary three-part constructions.
-- Avoid excessive use of colons and semicolons.
+- Avoid neat rhetorical formulas.
+- Avoid excessive three-part constructions.
+- Avoid unnecessary colons and semicolons.
 - Prefer plain English.
-- Do not include any citations, links, source references or URLs anywhere in the JSON values.
+- Never include citations, links or source references in any JSON value.
 
 Return ONLY valid JSON matching the requested schema.
 `.trim();
@@ -566,7 +605,15 @@ Return ONLY valid JSON matching the requested schema.
                       type: "string"
                     },
 
+                    strategic_headline: {
+                      type: "string"
+                    },
+
                     strategic_commentary: {
+                      type: "string"
+                    },
+
+                    consumer_headline: {
                       type: "string"
                     },
 
@@ -574,7 +621,15 @@ Return ONLY valid JSON matching the requested schema.
                       type: "string"
                     },
 
+                    market_headline: {
+                      type: "string"
+                    },
+
                     market_commentary: {
+                      type: "string"
+                    },
+
+                    growth_headline: {
                       type: "string"
                     },
 
@@ -582,11 +637,27 @@ Return ONLY valid JSON matching the requested schema.
                       type: "string"
                     },
 
+                    commercial_headline: {
+                      type: "string"
+                    },
+
                     commercial_commentary: {
                       type: "string"
                     },
 
-                    focus_next: {
+                    focus_next_intro: {
+                      type: "string"
+                    },
+
+                    now: {
+                      type: "string"
+                    },
+
+                    next: {
+                      type: "string"
+                    },
+
+                    nurture: {
                       type: "string"
                     }
 
@@ -595,12 +666,20 @@ Return ONLY valid JSON matching the requested schema.
                   required: [
                     "score_meaning",
                     "stands_out",
+                    "strategic_headline",
                     "strategic_commentary",
+                    "consumer_headline",
                     "consumer_commentary",
+                    "market_headline",
                     "market_commentary",
+                    "growth_headline",
                     "growth_commentary",
+                    "commercial_headline",
                     "commercial_commentary",
-                    "focus_next"
+                    "focus_next_intro",
+                    "now",
+                    "next",
+                    "nurture"
                   ]
                 }
               }
@@ -674,11 +753,6 @@ Return ONLY valid JSON matching the requested schema.
     }
 
 
-    /*
-      Belt-and-braces safeguard:
-      even if the model ignores the prompt and inserts a citation
-      or URL, remove it before the report reaches index.html.
-    */
     report =
       cleanReport(report);
 
