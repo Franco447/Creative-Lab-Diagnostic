@@ -1,0 +1,2367 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Diagnostic Review | The Creative Lab</title>
+
+  <style>
+    :root{
+      --black:#252525;
+      --charcoal:#343434;
+      --grey:#707070;
+      --light:#E4E4E4;
+      --cream:#F5F0E8;
+      --sage:#A8AEA0;
+      --plum:#6B4D59;
+      --sand:#E5DFD3;
+      --green:#DCE5D8;
+      --red:#F0DDDB;
+    }
+
+    *{box-sizing:border-box}
+
+    html,
+    body{
+      margin:0;
+      min-height:100%;
+      font-family:Arial,Helvetica,sans-serif;
+      color:var(--charcoal);
+      background:#f5f5f3;
+    }
+
+    button,
+    input,
+    textarea{
+      font:inherit;
+    }
+
+    button{cursor:pointer}
+
+    .hidden{
+      display:none !important;
+    }
+
+    .login-shell{
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:30px;
+    }
+
+    .login-card{
+      width:min(420px,100%);
+      background:#fff;
+      border-radius:16px;
+      padding:34px;
+      box-shadow:0 12px 40px rgba(0,0,0,.08);
+    }
+
+    .login-logo{
+      font-size:22px;
+      font-weight:800;
+      margin-bottom:42px;
+    }
+
+    .login-card h1{
+      font-size:30px;
+      line-height:1.05;
+      margin:0 0 12px;
+    }
+
+    .login-card p{
+      font-size:14px;
+      line-height:1.5;
+      margin:0 0 28px;
+      color:var(--grey);
+    }
+
+    .field{
+      margin-bottom:18px;
+    }
+
+    .field label{
+      display:block;
+      font-size:12px;
+      font-weight:700;
+      margin-bottom:7px;
+    }
+
+    .field input{
+      width:100%;
+      height:46px;
+      border:1px solid #ccc;
+      border-radius:6px;
+      padding:0 12px;
+      background:#fff;
+    }
+
+    .login-button{
+      width:100%;
+      height:46px;
+      border:0;
+      border-radius:6px;
+      background:var(--black);
+      color:#fff;
+      font-weight:700;
+    }
+
+    .login-error{
+      min-height:18px;
+      margin-top:14px;
+      font-size:12px;
+      color:#9b3f3f;
+    }
+
+    .dashboard{
+      min-height:100vh;
+      display:grid;
+      grid-template-columns:230px 1fr;
+    }
+
+    .sidebar{
+      position:fixed;
+      left:0;
+      top:0;
+      bottom:0;
+      width:230px;
+      padding:28px 20px;
+      background:#1f1f1f;
+      color:#fff;
+      display:flex;
+      flex-direction:column;
+    }
+
+    .brand{
+      font-size:19px;
+      font-weight:800;
+      margin-bottom:40px;
+    }
+
+    .nav-label{
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      opacity:.55;
+      margin-bottom:10px;
+    }
+
+    .nav-item{
+      padding:12px 10px;
+      border-radius:7px;
+      font-size:13px;
+      margin-bottom:5px;
+      background:rgba(255,255,255,.04);
+    }
+
+    .nav-item.active{
+      background:rgba(255,255,255,.12);
+    }
+
+    .sidebar-bottom{
+      margin-top:auto;
+    }
+
+    .signout{
+      border:0;
+      background:transparent;
+      color:#fff;
+      padding:10px 0;
+      font-size:13px;
+    }
+
+    .main{
+      grid-column:2;
+      min-width:0;
+    }
+
+    .topbar{
+      min-height:72px;
+      background:#fff;
+      border-bottom:1px solid #ddd;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 28px;
+      position:sticky;
+      top:0;
+      z-index:5;
+    }
+
+    .topbar-title{
+      font-size:17px;
+      font-weight:700;
+    }
+
+    .topbar-user{
+      font-size:12px;
+      color:var(--grey);
+    }
+
+    .content{
+      padding:26px 28px 50px;
+    }
+
+    .page-grid{
+      display:grid;
+      grid-template-columns:280px minmax(0,1fr);
+      gap:24px;
+      align-items:start;
+    }
+
+    .reports-panel{
+      background:#fff;
+      border:1px solid #ddd;
+      border-radius:12px;
+      overflow:hidden;
+      position:sticky;
+      top:98px;
+    }
+
+    .reports-head{
+      padding:18px;
+      border-bottom:1px solid #ddd;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    .reports-head strong{
+      font-size:14px;
+    }
+
+    .refresh{
+      border:0;
+      background:transparent;
+      font-size:12px;
+      text-decoration:underline;
+    }
+
+    .reports-list{
+      max-height:calc(100vh - 180px);
+      overflow:auto;
+    }
+
+    .report-list-item{
+      display:block;
+      width:100%;
+      border:0;
+      border-bottom:1px solid #eee;
+      background:#fff;
+      text-align:left;
+      padding:16px;
+    }
+
+    .report-list-item:hover,
+    .report-list-item.active{
+      background:#f3f2ef;
+    }
+
+    .company{
+      font-size:14px;
+      font-weight:700;
+      margin-bottom:5px;
+    }
+
+    .list-meta{
+      font-size:11px;
+      line-height:1.45;
+      color:var(--grey);
+    }
+
+    .status-chip{
+      display:inline-block;
+      margin-top:8px;
+      padding:4px 7px;
+      border-radius:20px;
+      background:#eee;
+      font-size:10px;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+    }
+
+    .status-chip.draft{background:#EEEAE1}
+    .status-chip.paused{background:#F1DECF}
+    .status-chip.approved{background:#DDE5D9}
+    .status-chip.sent{background:#DDE5D9}
+
+    .empty-state{
+      min-height:500px;
+      border:1px dashed #bbb;
+      border-radius:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:30px;
+      color:var(--grey);
+    }
+
+    .review-shell{
+      min-width:0;
+    }
+
+    .review-head{
+      background:#fff;
+      border:1px solid #ddd;
+      border-radius:12px;
+      padding:22px;
+      margin-bottom:20px;
+    }
+
+    .review-head-top{
+      display:flex;
+      gap:20px;
+      justify-content:space-between;
+      align-items:flex-start;
+    }
+
+    .client-name{
+      font-size:26px;
+      line-height:1;
+      font-weight:800;
+      margin-bottom:9px;
+    }
+
+    .client-meta{
+      font-size:12px;
+      color:var(--grey);
+      line-height:1.5;
+    }
+
+    .score-big{
+      font-size:38px;
+      line-height:1;
+      font-weight:800;
+      text-align:right;
+    }
+
+    .score-big small{
+      font-size:15px;
+      font-weight:400;
+      color:var(--grey);
+    }
+
+    .schedule-row{
+      margin-top:20px;
+      border-top:1px solid #e2e2e2;
+      padding-top:17px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:15px;
+    }
+
+    .countdown{
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .schedule-time{
+      display:block;
+      font-size:11px;
+      color:var(--grey);
+      font-weight:400;
+      margin-top:4px;
+    }
+
+    .action-row{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .button{
+      min-height:39px;
+      border-radius:6px;
+      padding:0 14px;
+      border:1px solid #bbb;
+      background:#fff;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .button.dark{
+      background:var(--black);
+      color:#fff;
+      border-color:var(--black);
+    }
+
+    .button.plum{
+      background:var(--plum);
+      color:#fff;
+      border-color:var(--plum);
+    }
+
+    .button:disabled{
+      opacity:.4;
+      cursor:not-allowed;
+    }
+
+    .workspace{
+      display:grid;
+      grid-template-columns:minmax(360px,.92fr) minmax(360px,1.08fr);
+      gap:20px;
+      align-items:start;
+    }
+
+    .editor,
+    .preview{
+      background:#fff;
+      border:1px solid #ddd;
+      border-radius:12px;
+      overflow:hidden;
+    }
+
+    .panel-title{
+      padding:17px 19px;
+      border-bottom:1px solid #ddd;
+      font-size:14px;
+      font-weight:700;
+    }
+
+    .editor-body{
+      padding:18px;
+    }
+
+    .edit-group{
+      padding:0 0 19px;
+      margin-bottom:19px;
+      border-bottom:1px solid #e5e5e5;
+    }
+
+    .edit-group:last-child{
+      border-bottom:0;
+      margin-bottom:0;
+    }
+
+    .edit-label{
+      font-size:12px;
+      font-weight:800;
+      text-transform:uppercase;
+      margin-bottom:8px;
+    }
+
+    .headline-input,
+    .copy-input{
+      width:100%;
+      border:1px solid #ccc;
+      border-radius:6px;
+      padding:10px;
+      resize:vertical;
+      line-height:1.4;
+      color:var(--charcoal);
+      background:#fff;
+    }
+
+    .headline-input{
+      min-height:44px;
+      font-weight:700;
+      margin-bottom:7px;
+    }
+
+    .copy-input{
+      min-height:110px;
+    }
+
+    .save-row{
+      position:sticky;
+      bottom:0;
+      background:#fff;
+      padding:14px 18px;
+      border-top:1px solid #ddd;
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+    }
+
+    .preview-body{
+      background:#ecebe7;
+      padding:18px;
+      max-height:calc(100vh - 135px);
+      overflow:auto;
+    }
+
+    .email{
+      width:100%;
+      max-width:600px;
+      margin:0 auto;
+      background:var(--cream);
+      padding:30px 28px;
+    }
+
+    .email-brand{
+      font-size:11px;
+      font-weight:700;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      margin-bottom:25px;
+    }
+
+    .email h2{
+      font-size:27px;
+      margin:0 0 22px;
+    }
+
+    .email h3{
+      font-size:13px;
+      margin:27px 0 7px;
+      text-transform:uppercase;
+    }
+
+    .email p{
+      font-size:13px;
+      line-height:1.5;
+      margin:0 0 16px;
+    }
+
+    .score-panel{
+      margin:20px 0 26px;
+      padding:17px 22px 19px;
+      border-radius:14px;
+      background:var(--sage);
+    }
+
+    .score-panel-title{
+      font-size:13px;
+      font-weight:700;
+      margin-bottom:10px;
+    }
+
+    .score-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:15px;
+    }
+
+    .score-number{
+      font-size:64px;
+      line-height:.85;
+      color:var(--cream);
+      font-weight:800;
+      letter-spacing:-.04em;
+    }
+
+    .score-number span{
+      font-size:33px;
+      font-weight:300;
+      color:#111;
+      letter-spacing:-.03em;
+    }
+
+    .score-bars{
+      display:flex;
+      gap:5px;
+      align-items:flex-end;
+    }
+
+    .score-bars span{
+      display:block;
+      width:15px;
+      background:var(--sand);
+    }
+
+    .score-bars span.filled{
+      background:var(--plum);
+    }
+
+    .score-bars span:nth-child(1){height:15px}
+    .score-bars span:nth-child(2){height:28px}
+    .score-bars span:nth-child(3){height:42px}
+    .score-bars span:nth-child(4){height:56px}
+    .score-bars span:nth-child(5){height:70px}
+
+    .divider{
+      height:1px;
+      background:#999;
+      margin:24px 0;
+    }
+
+    .area{
+      display:grid;
+      grid-template-columns:72px 1fr;
+      gap:15px;
+      padding:18px 0;
+      border-bottom:1px solid #999;
+    }
+
+    .circle{
+      width:64px;
+      height:64px;
+      border-radius:50%;
+      background:#DDD8CF;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      font-size:21px;
+      font-weight:800;
+      line-height:1;
+    }
+
+    .circle small{
+      margin-top:4px;
+      font-size:9px;
+      font-weight:400;
+    }
+
+    .area-title{
+      font-size:13px;
+      font-weight:800;
+      margin-bottom:5px;
+    }
+
+    .area-headline{
+      font-size:13px;
+      font-weight:700;
+      line-height:1.35;
+      margin-bottom:5px;
+    }
+
+    .area-copy{
+      font-size:12px;
+      line-height:1.5;
+    }
+
+    .path{
+      padding:15px 0;
+      border-top:1px solid #999;
+    }
+
+    .path strong{
+      font-size:12px;
+    }
+
+    .book-button{
+      display:block;
+      width:180px;
+      margin:24px auto;
+      padding:12px;
+      text-align:center;
+      background:var(--plum);
+      color:#fff;
+      border-radius:4px;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .success{
+      margin:0 0 16px;
+      background:var(--green);
+      padding:11px 13px;
+      border-radius:6px;
+      font-size:12px;
+    }
+
+    .warning{
+      margin:0 0 16px;
+      background:#F1DECF;
+      padding:11px 13px;
+      border-radius:6px;
+      font-size:12px;
+    }
+
+    @media(max-width:1100px){
+      .workspace{
+        grid-template-columns:1fr;
+      }
+
+      .preview-body{
+        max-height:none;
+      }
+    }
+
+    @media(max-width:760px){
+      .dashboard{
+        display:block;
+      }
+
+      .sidebar{
+        position:static;
+        width:auto;
+        height:auto;
+        padding:16px 18px;
+      }
+
+      .nav-label,
+      .nav-item{
+        display:none;
+      }
+
+      .brand{
+        margin:0;
+      }
+
+      .sidebar-bottom{
+        position:absolute;
+        right:18px;
+        top:10px;
+      }
+
+      .main{
+        width:100%;
+      }
+
+      .topbar{
+        padding:0 18px;
+      }
+
+      .content{
+        padding:18px;
+      }
+
+      .page-grid{
+        grid-template-columns:1fr;
+      }
+
+      .reports-panel{
+        position:static;
+      }
+
+      .reports-list{
+        max-height:260px;
+      }
+
+      .review-head-top,
+      .schedule-row{
+        flex-direction:column;
+        align-items:flex-start;
+      }
+
+      .score-big{
+        text-align:left;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="loginScreen" class="login-shell">
+
+  <div class="login-card">
+
+    <div class="login-logo">
+      The Creative Lab
+    </div>
+
+    <h1>
+      Diagnostic Review
+    </h1>
+
+    <p>
+      Private access for authorised Creative Lab reviewers.
+    </p>
+
+    <div class="field">
+      <label>Email</label>
+      <input
+        id="loginEmail"
+        type="email"
+        autocomplete="username"
+      >
+    </div>
+
+    <div class="field">
+      <label>Password</label>
+      <input
+        id="loginPassword"
+        type="password"
+        autocomplete="current-password"
+      >
+    </div>
+
+    <button
+      id="loginButton"
+      class="login-button"
+    >
+      Sign In
+    </button>
+
+    <div
+      id="loginError"
+      class="login-error"
+    ></div>
+
+  </div>
+
+</div>
+
+
+<div
+  id="appScreen"
+  class="dashboard hidden"
+>
+
+  <aside class="sidebar">
+
+    <div class="brand">
+      The Creative Lab
+    </div>
+
+    <div class="nav-label">
+      Internal
+    </div>
+
+    <div class="nav-item active">
+      Diagnostic Reviews
+    </div>
+
+    <div class="sidebar-bottom">
+      <button
+        id="signOutButton"
+        class="signout"
+      >
+        Sign out
+      </button>
+    </div>
+
+  </aside>
+
+
+  <main class="main">
+
+    <header class="topbar">
+
+      <div class="topbar-title">
+        Brand Performance Diagnostic
+      </div>
+
+      <div
+        id="currentUser"
+        class="topbar-user"
+      ></div>
+
+    </header>
+
+
+    <div class="content">
+
+      <div class="page-grid">
+
+        <section class="reports-panel">
+
+          <div class="reports-head">
+
+            <strong>
+              Diagnostics
+            </strong>
+
+            <button
+              id="refreshButton"
+              class="refresh"
+            >
+              Refresh
+            </button>
+
+          </div>
+
+          <div
+            id="reportsList"
+            class="reports-list"
+          ></div>
+
+        </section>
+
+
+        <section>
+
+          <div
+            id="emptyState"
+            class="empty-state"
+          >
+            Select a diagnostic to review.
+          </div>
+
+
+          <div
+            id="reviewShell"
+            class="review-shell hidden"
+          >
+
+            <div id="statusMessage"></div>
+
+
+            <div class="review-head">
+
+              <div class="review-head-top">
+
+                <div>
+
+                  <div
+                    id="clientName"
+                    class="client-name"
+                  ></div>
+
+                  <div
+                    id="clientMeta"
+                    class="client-meta"
+                  ></div>
+
+                </div>
+
+
+                <div
+                  id="overallScore"
+                  class="score-big"
+                ></div>
+
+              </div>
+
+
+              <div class="schedule-row">
+
+                <div>
+
+                  <div
+                    id="countdown"
+                    class="countdown"
+                  ></div>
+
+                  <span
+                    id="scheduledTime"
+                    class="schedule-time"
+                  ></span>
+
+                </div>
+
+
+                <div class="action-row">
+
+                  <button
+                    id="pauseButton"
+                    class="button"
+                  >
+                    Pause Send
+                  </button>
+
+                  <button
+                    id="approveButton"
+                    class="button dark"
+                  >
+                    Approve &amp; Send
+                  </button>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <div class="workspace">
+
+              <section class="editor">
+
+                <div class="panel-title">
+                  Edit report
+                </div>
+
+                <div
+                  id="editorBody"
+                  class="editor-body"
+                ></div>
+
+                <div class="save-row">
+
+                  <button
+                    id="saveButton"
+                    class="button plum"
+                  >
+                    Save Changes
+                  </button>
+
+                </div>
+
+              </section>
+
+
+              <section class="preview">
+
+                <div class="panel-title">
+                  Email preview
+                </div>
+
+                <div
+                  id="emailPreview"
+                  class="preview-body"
+                ></div>
+
+              </section>
+
+            </div>
+
+          </div>
+
+        </section>
+
+      </div>
+
+    </div>
+
+  </main>
+
+</div>
+
+
+<script type="module">
+
+  import { createClient }
+  from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+
+  /*
+    IMPORTANT:
+    Paste your PUBLIC/PUBLISHABLE key below.
+    DO NOT paste the secret key.
+  */
+
+  const SUPABASE_URL =
+    'https://zhhheesxkpynjrohktrg.supabase.co';
+
+  const SUPABASE_PUBLISHABLE_KEY =
+    'sb_publishable_mw9ROaaA9D-HFC3R9_TDGg_YFt4BjwG;
+
+
+  const supabase =
+    createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
+    );
+
+
+  const loginScreen =
+    document.getElementById('loginScreen');
+
+  const appScreen =
+    document.getElementById('appScreen');
+
+  const loginEmail =
+    document.getElementById('loginEmail');
+
+  const loginPassword =
+    document.getElementById('loginPassword');
+
+  const loginButton =
+    document.getElementById('loginButton');
+
+  const loginError =
+    document.getElementById('loginError');
+
+  const signOutButton =
+    document.getElementById('signOutButton');
+
+  const currentUser =
+    document.getElementById('currentUser');
+
+  const reportsList =
+    document.getElementById('reportsList');
+
+  const refreshButton =
+    document.getElementById('refreshButton');
+
+  const emptyState =
+    document.getElementById('emptyState');
+
+  const reviewShell =
+    document.getElementById('reviewShell');
+
+  const clientName =
+    document.getElementById('clientName');
+
+  const clientMeta =
+    document.getElementById('clientMeta');
+
+  const overallScore =
+    document.getElementById('overallScore');
+
+  const countdown =
+    document.getElementById('countdown');
+
+  const scheduledTime =
+    document.getElementById('scheduledTime');
+
+  const editorBody =
+    document.getElementById('editorBody');
+
+  const emailPreview =
+    document.getElementById('emailPreview');
+
+  const saveButton =
+    document.getElementById('saveButton');
+
+  const pauseButton =
+    document.getElementById('pauseButton');
+
+  const approveButton =
+    document.getElementById('approveButton');
+
+  const statusMessage =
+    document.getElementById('statusMessage');
+
+
+  let reports = [];
+  let selectedReport = null;
+  let countdownTimer = null;
+
+
+  const reportFields = [
+
+    {
+      key:'score_meaning',
+      label:'What Your Score Means',
+      type:'copy'
+    },
+
+    {
+      key:'stands_out',
+      label:'What Stands Out',
+      type:'copy'
+    },
+
+    {
+      key:'strategic_headline',
+      label:'Strategic Fitness — Headline',
+      type:'headline'
+    },
+
+    {
+      key:'strategic_commentary',
+      label:'Strategic Fitness — Commentary',
+      type:'copy'
+    },
+
+    {
+      key:'consumer_headline',
+      label:'Consumer Intelligence — Headline',
+      type:'headline'
+    },
+
+    {
+      key:'consumer_commentary',
+      label:'Consumer Intelligence — Commentary',
+      type:'copy'
+    },
+
+    {
+      key:'market_headline',
+      label:'Market Influence — Headline',
+      type:'headline'
+    },
+
+    {
+      key:'market_commentary',
+      label:'Market Influence — Commentary',
+      type:'copy'
+    },
+
+    {
+      key:'growth_headline',
+      label:'Growth Engine — Headline',
+      type:'headline'
+    },
+
+    {
+      key:'growth_commentary',
+      label:'Growth Engine — Commentary',
+      type:'copy'
+    },
+
+    {
+      key:'commercial_headline',
+      label:'Commercial Endurance — Headline',
+      type:'headline'
+    },
+
+    {
+      key:'commercial_commentary',
+      label:'Commercial Endurance — Commentary',
+      type:'copy'
+    },
+
+    {
+      key:'focus_next_intro',
+      label:'Where To Focus Next',
+      type:'copy'
+    },
+
+    {
+      key:'now',
+      label:'Now',
+      type:'copy'
+    },
+
+    {
+      key:'next',
+      label:'Next',
+      type:'copy'
+    },
+
+    {
+      key:'nurture',
+      label:'Nurture',
+      type:'copy'
+    }
+
+  ];
+
+
+  function escapeHtml(value){
+
+    return String(value ?? '')
+      .replace(
+        /[&<>"']/g,
+        ch=>({
+          '&':'&amp;',
+          '<':'&lt;',
+          '>':'&gt;',
+          '"':'&quot;',
+          "'":'&#039;'
+        })[ch]
+      );
+  }
+
+
+  function formatDate(value){
+
+    if(!value){
+      return '';
+    }
+
+    return new Date(value)
+      .toLocaleString(
+        'en-GB',
+        {
+          dateStyle:'medium',
+          timeStyle:'short'
+        }
+      );
+  }
+
+
+  function getFirstName(name){
+
+    return String(name || '')
+      .trim()
+      .split(/\s+/)[0] ||
+      'there';
+  }
+
+
+  async function checkSession(){
+
+    const {
+      data:{ session }
+    }=
+      await supabase.auth.getSession();
+
+
+    if(session){
+
+      showDashboard(
+        session.user
+      );
+
+    }else{
+
+      showLogin();
+    }
+  }
+
+
+  function showLogin(){
+
+    loginScreen.classList.remove(
+      'hidden'
+    );
+
+    appScreen.classList.add(
+      'hidden'
+    );
+  }
+
+
+  async function showDashboard(user){
+
+    loginScreen.classList.add(
+      'hidden'
+    );
+
+    appScreen.classList.remove(
+      'hidden'
+    );
+
+    currentUser.textContent =
+      user.email || '';
+
+    await loadReports();
+  }
+
+
+  loginButton.addEventListener(
+    'click',
+    async ()=>{
+
+      loginError.textContent='';
+
+      loginButton.disabled=true;
+      loginButton.textContent='Signing in…';
+
+
+      const {
+        data,
+        error
+      }=
+        await supabase.auth
+          .signInWithPassword({
+
+            email:
+              loginEmail.value.trim(),
+
+            password:
+              loginPassword.value
+
+          });
+
+
+      loginButton.disabled=false;
+      loginButton.textContent='Sign In';
+
+
+      if(error){
+
+        loginError.textContent=
+          error.message;
+
+        return;
+      }
+
+
+      if(data.user){
+
+        await showDashboard(
+          data.user
+        );
+      }
+    }
+  );
+
+
+  loginPassword.addEventListener(
+    'keydown',
+    e=>{
+
+      if(e.key==='Enter'){
+        loginButton.click();
+      }
+    }
+  );
+
+
+  signOutButton.addEventListener(
+    'click',
+    async ()=>{
+
+      await supabase.auth.signOut();
+
+      reports=[];
+      selectedReport=null;
+
+      showLogin();
+    }
+  );
+
+
+  refreshButton.addEventListener(
+    'click',
+    loadReports
+  );
+
+
+  async function loadReports(){
+
+    reportsList.innerHTML =
+      '<div style="padding:18px;font-size:12px;color:#707070;">Loading…</div>';
+
+
+    const {
+      data,
+      error
+    }=
+      await supabase
+        .from('diagnostic_reports')
+        .select('*')
+        .order(
+          'created_at',
+          { ascending:false }
+        );
+
+
+    if(error){
+
+      reportsList.innerHTML =
+        `<div style="padding:18px;font-size:12px;color:#9b3f3f;">
+          ${escapeHtml(error.message)}
+        </div>`;
+
+      return;
+    }
+
+
+    reports =
+      data || [];
+
+
+    renderReportsList();
+
+
+    if(selectedReport){
+
+      const fresh =
+        reports.find(
+          r=>r.id===selectedReport.id
+        );
+
+      if(fresh){
+        selectReport(fresh);
+      }
+    }
+  }
+
+
+  function renderReportsList(){
+
+    if(!reports.length){
+
+      reportsList.innerHTML =
+        '<div style="padding:18px;font-size:12px;color:#707070;">No diagnostics yet.</div>';
+
+      return;
+    }
+
+
+    reportsList.innerHTML =
+      reports
+        .map(
+          r=>{
+
+            const active =
+              selectedReport?.id===r.id
+                ? 'active'
+                : '';
+
+            return `
+              <button
+                class="report-list-item ${active}"
+                data-id="${r.id}"
+              >
+
+                <div class="company">
+                  ${escapeHtml(r.company_name)}
+                </div>
+
+                <div class="list-meta">
+
+                  ${escapeHtml(r.client_name || '')}
+
+                  ${r.client_name ? '<br>' : ''}
+
+                  ${r.overall_score}/100
+                  ·
+                  ${formatDate(r.created_at)}
+
+                </div>
+
+                <span
+                  class="status-chip ${r.status}"
+                >
+                  ${escapeHtml(r.status)}
+                </span>
+
+              </button>
+            `;
+          }
+        )
+        .join('');
+
+
+    document
+      .querySelectorAll('.report-list-item')
+      .forEach(
+        button=>{
+
+          button.addEventListener(
+            'click',
+            ()=>{
+
+              const report =
+                reports.find(
+                  r=>r.id===button.dataset.id
+                );
+
+              if(report){
+                selectReport(report);
+              }
+            }
+          );
+        }
+      );
+  }
+
+
+  function selectReport(report){
+
+    selectedReport =
+      JSON.parse(
+        JSON.stringify(report)
+      );
+
+
+    emptyState.classList.add(
+      'hidden'
+    );
+
+    reviewShell.classList.remove(
+      'hidden'
+    );
+
+
+    renderReportsList();
+    renderReviewHead();
+    renderEditor();
+    renderPreview();
+    startCountdown();
+  }
+
+
+  function renderReviewHead(){
+
+    if(!selectedReport){
+      return;
+    }
+
+
+    clientName.textContent =
+      selectedReport.company_name;
+
+
+    clientMeta.innerHTML = `
+      ${escapeHtml(
+        selectedReport.client_name || ''
+      )}
+
+      ${selectedReport.client_position
+        ? ' · '+
+          escapeHtml(selectedReport.client_position)
+        : ''
+      }
+
+      <br>
+
+      ${escapeHtml(
+        selectedReport.client_email || ''
+      )}
+
+      ${selectedReport.client_mobile
+        ? ' · '+
+          escapeHtml(selectedReport.client_mobile)
+        : ''
+      }
+
+      <br>
+
+      Completed
+      ${formatDate(selectedReport.created_at)}
+      ·
+      <strong>
+        ${escapeHtml(selectedReport.status)}
+      </strong>
+    `;
+
+
+    overallScore.innerHTML = `
+      ${selectedReport.overall_score}
+      <small>/100</small>
+    `;
+
+
+    pauseButton.disabled =
+      selectedReport.status==='sent' ||
+      selectedReport.status==='approved';
+
+
+    approveButton.disabled =
+      selectedReport.status==='sent';
+
+
+    pauseButton.textContent =
+      selectedReport.status==='paused'
+        ? 'Resume Send'
+        : 'Pause Send';
+  }
+
+
+  function renderEditor(){
+
+    const report =
+      selectedReport.report_json || {};
+
+
+    editorBody.innerHTML =
+      reportFields
+        .map(
+          field=>`
+
+            <div class="edit-group">
+
+              <div class="edit-label">
+                ${field.label}
+              </div>
+
+              <textarea
+                class="${field.type==='headline'
+                  ? 'headline-input'
+                  : 'copy-input'
+                }"
+                data-report-field="${field.key}"
+              >${escapeHtml(report[field.key] || '')}</textarea>
+
+            </div>
+
+          `
+        )
+        .join('');
+
+
+    document
+      .querySelectorAll(
+        '[data-report-field]'
+      )
+      .forEach(
+        input=>{
+
+          input.addEventListener(
+            'input',
+            ()=>{
+
+              selectedReport
+                .report_json[
+                  input.dataset.reportField
+                ]=
+                  input.value;
+
+              renderPreview();
+            }
+          );
+        }
+      );
+  }
+
+
+  function scoreBars(score){
+
+    const filled =
+      Math.min(
+        5,
+        Math.floor(
+          Number(score || 0)/20
+        )
+      );
+
+
+    return Array.from(
+      {length:5},
+      (_,i)=>`
+        <span
+          class="${i<filled ? 'filled' : ''}"
+        ></span>
+      `
+    ).join('');
+  }
+
+
+  function areaMarkup(
+    title,
+    score,
+    headline,
+    copy
+  ){
+
+    return `
+      <div class="area">
+
+        <div class="circle">
+
+          ${score}
+
+          <small>
+            /100
+          </small>
+
+        </div>
+
+        <div>
+
+          <div class="area-title">
+            ${escapeHtml(title)}
+          </div>
+
+          <div class="area-headline">
+            ${escapeHtml(headline || '')}
+          </div>
+
+          <div class="area-copy">
+            ${escapeHtml(copy || '')}
+          </div>
+
+        </div>
+
+      </div>
+    `;
+  }
+
+
+  function renderPreview(){
+
+    if(!selectedReport){
+      return;
+    }
+
+
+    const r =
+      selectedReport.report_json || {};
+
+
+    emailPreview.innerHTML = `
+      <div class="email">
+
+        <div class="email-brand">
+          ${escapeHtml(selectedReport.company_name)}
+        </div>
+
+
+        <p>
+          Hi ${escapeHtml(
+            getFirstName(selectedReport.client_name)
+          )},
+        </p>
+
+
+        <p>
+          Thank you for completing our Brand Performance Diagnostic.
+        </p>
+
+
+        <p>
+          We’ve reviewed your responses and looked at your brand to create the personalised report below.
+          It highlights what’s working, where growth may be getting constrained and where we think your attention should go next.
+        </p>
+
+
+        <p>
+          The report is deliberately high level.
+          The real value comes from looking at the findings in context and deciding what to prioritise.
+          That’s where our <strong>Now, Next and Nurture</strong> growth pathway comes in.
+        </p>
+
+
+        <p>
+          But first, here’s what your diagnostic is telling us.
+        </p>
+
+
+        <div class="score-panel">
+
+          <div class="score-panel-title">
+            Your Brand Performance Score
+          </div>
+
+          <div class="score-row">
+
+            <div class="score-number">
+
+              ${selectedReport.overall_score}
+
+              <span>/100</span>
+
+            </div>
+
+
+            <div class="score-bars">
+              ${scoreBars(
+                selectedReport.overall_score
+              )}
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <h3>
+          What Your Score Means
+        </h3>
+
+        <p>
+          ${escapeHtml(
+            r.score_meaning || ''
+          )}
+        </p>
+
+
+        <div class="divider"></div>
+
+
+        <h3>
+          What Stands Out
+        </h3>
+
+        <p>
+          ${escapeHtml(
+            r.stands_out || ''
+          )}
+        </p>
+
+
+        <div class="divider"></div>
+
+
+        <h3>
+          The Five Areas
+        </h3>
+
+
+        ${areaMarkup(
+          'Strategic Fitness',
+          selectedReport.strategic_score,
+          r.strategic_headline,
+          r.strategic_commentary
+        )}
+
+
+        ${areaMarkup(
+          'Consumer Intelligence',
+          selectedReport.consumer_score,
+          r.consumer_headline,
+          r.consumer_commentary
+        )}
+
+
+        ${areaMarkup(
+          'Market Influence',
+          selectedReport.market_score,
+          r.market_headline,
+          r.market_commentary
+        )}
+
+
+        ${areaMarkup(
+          'Growth Engine',
+          selectedReport.growth_score,
+          r.growth_headline,
+          r.growth_commentary
+        )}
+
+
+        ${areaMarkup(
+          'Commercial Endurance',
+          selectedReport.commercial_score,
+          r.commercial_headline,
+          r.commercial_commentary
+        )}
+
+
+        <h3>
+          Where To Focus Next
+        </h3>
+
+        <p>
+          ${escapeHtml(
+            r.focus_next_intro || ''
+          )}
+        </p>
+
+
+        <div class="path">
+
+          <strong>
+            NOW
+          </strong>
+
+          <p>
+            ${escapeHtml(r.now || '')}
+          </p>
+
+        </div>
+
+
+        <div class="path">
+
+          <strong>
+            NEXT
+          </strong>
+
+          <p>
+            ${escapeHtml(r.next || '')}
+          </p>
+
+        </div>
+
+
+        <div class="path">
+
+          <strong>
+            NURTURE
+          </strong>
+
+          <p>
+            ${escapeHtml(r.nurture || '')}
+          </p>
+
+        </div>
+
+
+        <div class="divider"></div>
+
+
+        <p>
+          We hope this gives you a useful view of where the brand stands today and, more importantly, where the opportunity may lie.
+        </p>
+
+
+        <p>
+          If you’re keen to understand how these findings could shape your <strong>Growth Pathway</strong> — as well as explore what <strong>Now / Next / Nurture</strong> could look like for your business — we’d be happy to arrange a no-obligation call.
+        </p>
+
+
+        <div class="book-button">
+          Book a Call
+        </div>
+
+
+        <p>
+          Kind regards,<br>
+          <strong>The Creative Lab</strong>
+        </p>
+
+      </div>
+    `;
+  }
+
+
+  function startCountdown(){
+
+    if(countdownTimer){
+      clearInterval(countdownTimer);
+    }
+
+
+    updateCountdown();
+
+
+    countdownTimer =
+      setInterval(
+        updateCountdown,
+        1000
+      );
+  }
+
+
+  function updateCountdown(){
+
+    if(!selectedReport){
+      return;
+    }
+
+
+    if(selectedReport.status==='paused'){
+
+      countdown.textContent =
+        'Send paused';
+
+      scheduledTime.textContent =
+        'This report will not send until resumed or approved.';
+
+      return;
+    }
+
+
+    if(selectedReport.status==='sent'){
+
+      countdown.textContent =
+        'Email sent';
+
+      scheduledTime.textContent =
+        selectedReport.sent_at
+          ? formatDate(selectedReport.sent_at)
+          : '';
+
+      return;
+    }
+
+
+    if(selectedReport.status==='approved'){
+
+      countdown.textContent =
+        'Approved for sending';
+
+      scheduledTime.textContent =
+        selectedReport.approved_at
+          ? formatDate(selectedReport.approved_at)
+          : '';
+
+      return;
+    }
+
+
+    const sendTime =
+      new Date(
+        selectedReport.scheduled_send_at
+      ).getTime();
+
+
+    const diff =
+      sendTime - Date.now();
+
+
+    if(diff<=0){
+
+      countdown.textContent =
+        'Scheduled send time reached';
+
+      scheduledTime.textContent =
+        formatDate(
+          selectedReport.scheduled_send_at
+        );
+
+      return;
+    }
+
+
+    const hours =
+      Math.floor(
+        diff/3600000
+      );
+
+
+    const minutes =
+      Math.floor(
+        (diff%3600000)/60000
+      );
+
+
+    countdown.textContent =
+      `Scheduled to send in ${hours}h ${minutes}m`;
+
+
+    scheduledTime.textContent =
+      `Scheduled for ${formatDate(
+        selectedReport.scheduled_send_at
+      )}`;
+  }
+
+
+  function pullEditorValues(){
+
+    const report =
+      {
+        ...selectedReport.report_json
+      };
+
+
+    document
+      .querySelectorAll(
+        '[data-report-field]'
+      )
+      .forEach(
+        input=>{
+
+          report[
+            input.dataset.reportField
+          ]=
+            input.value.trim();
+        }
+      );
+
+
+    return report;
+  }
+
+
+  function showStatus(
+    text,
+    type='success'
+  ){
+
+    statusMessage.innerHTML = `
+      <div class="${type}">
+        ${escapeHtml(text)}
+      </div>
+    `;
+
+
+    setTimeout(
+      ()=>{
+        statusMessage.innerHTML='';
+      },
+      4500
+    );
+  }
+
+
+  saveButton.addEventListener(
+    'click',
+    async ()=>{
+
+      if(!selectedReport){
+        return;
+      }
+
+
+      saveButton.disabled=true;
+      saveButton.textContent='Saving…';
+
+
+      const report =
+        pullEditorValues();
+
+
+      const {
+        data:{ user }
+      }=
+        await supabase.auth.getUser();
+
+
+      const {
+        data,
+        error
+      }=
+        await supabase
+          .from('diagnostic_reports')
+          .update({
+
+            report_json:report,
+
+            edited_by:
+              user?.email || null,
+
+            updated_at:
+              new Date().toISOString()
+
+          })
+          .eq(
+            'id',
+            selectedReport.id
+          )
+          .select()
+          .single();
+
+
+      saveButton.disabled=false;
+      saveButton.textContent='Save Changes';
+
+
+      if(error){
+
+        showStatus(
+          error.message,
+          'warning'
+        );
+
+        return;
+      }
+
+
+      selectedReport=data;
+
+      showStatus(
+        'Changes saved.'
+      );
+
+
+      await loadReports();
+    }
+  );
+
+
+  pauseButton.addEventListener(
+    'click',
+    async ()=>{
+
+      if(!selectedReport){
+        return;
+      }
+
+
+      const isPaused =
+        selectedReport.status==='paused';
+
+
+      const newStatus =
+        isPaused
+          ? 'draft'
+          : 'paused';
+
+
+      const update = {
+        status:newStatus,
+        updated_at:
+          new Date().toISOString()
+      };
+
+
+      if(isPaused){
+
+        update.scheduled_send_at =
+          new Date(
+            Date.now() +
+            3*60*60*1000
+          ).toISOString();
+      }
+
+
+      const {
+        data,
+        error
+      }=
+        await supabase
+          .from('diagnostic_reports')
+          .update(update)
+          .eq(
+            'id',
+            selectedReport.id
+          )
+          .select()
+          .single();
+
+
+      if(error){
+
+        showStatus(
+          error.message,
+          'warning'
+        );
+
+        return;
+      }
+
+
+      selectedReport=data;
+
+      showStatus(
+        isPaused
+          ? 'Send resumed. A new 3-hour review window has started.'
+          : 'Send paused.'
+      );
+
+
+      await loadReports();
+    }
+  );
+
+
+  approveButton.addEventListener(
+    'click',
+    async ()=>{
+
+      if(!selectedReport){
+        return;
+      }
+
+
+      const report =
+        pullEditorValues();
+
+
+      const {
+        data:{ user }
+      }=
+        await supabase.auth.getUser();
+
+
+      const {
+        data,
+        error
+      }=
+        await supabase
+          .from('diagnostic_reports')
+          .update({
+
+            report_json:report,
+
+            status:'approved',
+
+            approved_at:
+              new Date().toISOString(),
+
+            edited_by:
+              user?.email || null,
+
+            updated_at:
+              new Date().toISOString()
+
+          })
+          .eq(
+            'id',
+            selectedReport.id
+          )
+          .select()
+          .single();
+
+
+      if(error){
+
+        showStatus(
+          error.message,
+          'warning'
+        );
+
+        return;
+      }
+
+
+      selectedReport=data;
+
+
+      showStatus(
+        'Report approved. Email delivery will be connected in the next step.'
+      );
+
+
+      await loadReports();
+    }
+  );
+
+
+  supabase.auth.onAuthStateChange(
+    (
+      event,
+      session
+    )=>{
+
+      if(event==='SIGNED_OUT'){
+        showLogin();
+      }
+
+
+      if(
+        event==='SIGNED_IN' &&
+        session?.user
+      ){
+        showDashboard(
+          session.user
+        );
+      }
+    }
+  );
+
+
+  checkSession();
+
+</script>
+
+</body>
+</html>
