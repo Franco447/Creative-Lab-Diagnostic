@@ -77,27 +77,183 @@ function cleanReport(report) {
 }
 
 
+function threeHoursFromNow() {
+  return new Date(
+    Date.now() + (3 * 60 * 60 * 1000)
+  ).toISOString();
+}
+
+
+async function saveDraftToSupabase({
+  client,
+  diagnostic,
+  report
+}) {
+
+  const supabaseUrl =
+    Netlify.env.get("SUPABASE_URL");
+
+  const supabaseSecret =
+    Netlify.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+
+  if (!supabaseUrl || !supabaseSecret) {
+    throw new Error(
+      "Supabase environment variables are missing."
+    );
+  }
+
+
+  const scheduledSendAt =
+    threeHoursFromNow();
+
+
+  const dimensions =
+    diagnostic.dimensions || {};
+
+
+  const draft = {
+
+    client_name:
+      client.contact_name || null,
+
+    client_position:
+      client.position || null,
+
+    client_email:
+      client.email || null,
+
+    client_mobile:
+      client.mobile || null,
+
+    company_name:
+      client.company,
+
+    website:
+      client.website,
+
+    overall_score:
+      diagnostic.overall_score,
+
+    strategic_score:
+      dimensions["Strategic Fitness"] ?? 0,
+
+    consumer_score:
+      dimensions["Consumer Intelligence"] ?? 0,
+
+    market_score:
+      dimensions["Market Influence"] ?? 0,
+
+    growth_score:
+      dimensions["Growth Engine"] ?? 0,
+
+    commercial_score:
+      dimensions["Commercial Endurance"] ?? 0,
+
+    answers:
+      diagnostic.answers,
+
+    report_json:
+      report,
+
+    status:
+      "draft",
+
+    scheduled_send_at:
+      scheduledSendAt
+  };
+
+
+  const response =
+    await fetch(
+      `${supabaseUrl}/rest/v1/diagnostic_reports`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          "apikey":
+            supabaseSecret,
+
+          "Prefer":
+            "return=representation"
+        },
+
+        body:
+          JSON.stringify(draft)
+      }
+    );
+
+
+  const data =
+    await response.json()
+      .catch(() => null);
+
+
+  if (!response.ok) {
+
+    const message =
+      data?.message ||
+      data?.error ||
+      `Supabase save failed with status ${response.status}.`;
+
+    throw new Error(message);
+  }
+
+
+  const saved =
+    Array.isArray(data)
+      ? data[0]
+      : data;
+
+
+  if (!saved?.id) {
+    throw new Error(
+      "Supabase did not return a report ID."
+    );
+  }
+
+
+  return {
+    id: saved.id,
+    scheduled_send_at:
+      saved.scheduled_send_at ||
+      scheduledSendAt
+  };
+}
+
+
+
 export default async (req) => {
 
   if (req.method !== "POST") {
+
     return jsonResponse(405, {
       error: "Method not allowed."
     });
   }
 
 
-  const apiKey = Netlify.env.get("OPENAI_API_KEY");
+  const apiKey =
+    Netlify.env.get("OPENAI_API_KEY");
+
 
   if (!apiKey) {
+
     return jsonResponse(500, {
-      error: "OPENAI_API_KEY has not been added to the Netlify site yet."
+      error:
+        "OPENAI_API_KEY has not been added to the Netlify site yet."
     });
   }
 
 
   try {
 
-    const body = await req.json();
+    const body =
+      await req.json();
+
 
     const {
       client,
@@ -110,14 +266,18 @@ export default async (req) => {
       !client?.website ||
       !diagnostic?.answers
     ) {
+
       return jsonResponse(400, {
-        error: "Missing client or diagnostic data."
+        error:
+          "Missing client or diagnostic data."
       });
     }
 
 
     const domain =
-      normaliseDomain(client.website);
+      normaliseDomain(
+        client.website
+      );
 
 
     const prompt = `
@@ -341,6 +501,7 @@ Aim for the reaction:
 Do not repeat score_meaning.
 
 
+
 THE FIVE AREAS
 
 For each area return:
@@ -349,21 +510,6 @@ For each area return:
 2. One concise paragraph.
 
 The headline should be memorable and revealing, not cute or advertising copy.
-
-Good examples of the style:
-
-"The ambition is clearer than the story holding it together."
-
-"You understand the problem. The gap is why they choose you."
-
-"You have authority. Now make it easier to remember."
-
-Do not copy those examples unless they genuinely fit.
-
-The commentary should naturally combine:
-
-- what we are seeing
-- why it matters
 
 Do not create visible labels such as "What we're seeing" or "Why it matters".
 
@@ -557,136 +703,147 @@ Return ONLY valid JSON matching the requested schema.
           method: "POST",
 
           headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json"
+            "Authorization":
+              `Bearer ${apiKey}`,
+
+            "Content-Type":
+              "application/json"
           },
 
-          body: JSON.stringify({
+          body:
+            JSON.stringify({
 
-            model:
-              Netlify.env.get("OPENAI_MODEL") ||
-              "gpt-5.1",
+              model:
+                Netlify.env.get("OPENAI_MODEL") ||
+                "gpt-5.1",
 
-            tools: [
-              {
-                type: "web_search",
+              tools: [
+                {
+                  type:
+                    "web_search",
 
-                filters: {
-                  allowed_domains: [
-                    domain
-                  ]
-                },
-
-                search_context_size:
-                  "medium"
-              }
-            ],
-
-            text: {
-              format: {
-                type: "json_schema",
-                name:
-                  "brand_performance_report",
-                strict: true,
-
-                schema: {
-                  type: "object",
-
-                  additionalProperties:
-                    false,
-
-                  properties: {
-
-                    score_meaning: {
-                      type: "string"
-                    },
-
-                    stands_out: {
-                      type: "string"
-                    },
-
-                    strategic_headline: {
-                      type: "string"
-                    },
-
-                    strategic_commentary: {
-                      type: "string"
-                    },
-
-                    consumer_headline: {
-                      type: "string"
-                    },
-
-                    consumer_commentary: {
-                      type: "string"
-                    },
-
-                    market_headline: {
-                      type: "string"
-                    },
-
-                    market_commentary: {
-                      type: "string"
-                    },
-
-                    growth_headline: {
-                      type: "string"
-                    },
-
-                    growth_commentary: {
-                      type: "string"
-                    },
-
-                    commercial_headline: {
-                      type: "string"
-                    },
-
-                    commercial_commentary: {
-                      type: "string"
-                    },
-
-                    focus_next_intro: {
-                      type: "string"
-                    },
-
-                    now: {
-                      type: "string"
-                    },
-
-                    next: {
-                      type: "string"
-                    },
-
-                    nurture: {
-                      type: "string"
-                    }
-
+                  filters: {
+                    allowed_domains: [
+                      domain
+                    ]
                   },
 
-                  required: [
-                    "score_meaning",
-                    "stands_out",
-                    "strategic_headline",
-                    "strategic_commentary",
-                    "consumer_headline",
-                    "consumer_commentary",
-                    "market_headline",
-                    "market_commentary",
-                    "growth_headline",
-                    "growth_commentary",
-                    "commercial_headline",
-                    "commercial_commentary",
-                    "focus_next_intro",
-                    "now",
-                    "next",
-                    "nurture"
-                  ]
+                  search_context_size:
+                    "medium"
                 }
-              }
-            },
+              ],
 
-            input: prompt
-          })
+              text: {
+                format: {
+                  type:
+                    "json_schema",
+
+                  name:
+                    "brand_performance_report",
+
+                  strict:
+                    true,
+
+                  schema: {
+                    type:
+                      "object",
+
+                    additionalProperties:
+                      false,
+
+                    properties: {
+
+                      score_meaning: {
+                        type: "string"
+                      },
+
+                      stands_out: {
+                        type: "string"
+                      },
+
+                      strategic_headline: {
+                        type: "string"
+                      },
+
+                      strategic_commentary: {
+                        type: "string"
+                      },
+
+                      consumer_headline: {
+                        type: "string"
+                      },
+
+                      consumer_commentary: {
+                        type: "string"
+                      },
+
+                      market_headline: {
+                        type: "string"
+                      },
+
+                      market_commentary: {
+                        type: "string"
+                      },
+
+                      growth_headline: {
+                        type: "string"
+                      },
+
+                      growth_commentary: {
+                        type: "string"
+                      },
+
+                      commercial_headline: {
+                        type: "string"
+                      },
+
+                      commercial_commentary: {
+                        type: "string"
+                      },
+
+                      focus_next_intro: {
+                        type: "string"
+                      },
+
+                      now: {
+                        type: "string"
+                      },
+
+                      next: {
+                        type: "string"
+                      },
+
+                      nurture: {
+                        type: "string"
+                      }
+
+                    },
+
+                    required: [
+                      "score_meaning",
+                      "stands_out",
+                      "strategic_headline",
+                      "strategic_commentary",
+                      "consumer_headline",
+                      "consumer_commentary",
+                      "market_headline",
+                      "market_commentary",
+                      "growth_headline",
+                      "growth_commentary",
+                      "commercial_headline",
+                      "commercial_commentary",
+                      "focus_next_intro",
+                      "now",
+                      "next",
+                      "nurture"
+                    ]
+                  }
+                }
+              },
+
+              input:
+                prompt
+            })
         }
       );
 
@@ -730,6 +887,7 @@ Return ONLY valid JSON matching the requested schema.
 
 
     if (!outputText) {
+
       return jsonResponse(502, {
         error:
           "No report data was returned."
@@ -738,6 +896,7 @@ Return ONLY valid JSON matching the requested schema.
 
 
     let report;
+
 
     try {
 
@@ -757,8 +916,27 @@ Return ONLY valid JSON matching the requested schema.
       cleanReport(report);
 
 
+    /*
+      Save the completed AI report as a draft
+      for internal review before client delivery.
+    */
+    const savedDraft =
+      await saveDraftToSupabase({
+        client,
+        diagnostic,
+        report
+      });
+
+
     return jsonResponse(200, {
-      report
+
+      report,
+
+      report_id:
+        savedDraft.id,
+
+      scheduled_send_at:
+        savedDraft.scheduled_send_at
     });
 
 
@@ -769,6 +947,5 @@ Return ONLY valid JSON matching the requested schema.
         err?.message ||
         "Unexpected error."
     });
-
   }
 };
