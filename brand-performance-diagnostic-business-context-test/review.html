@@ -644,12 +644,13 @@ button{
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  padding-top:3px;
+  transform:translateY(-1px);
 }
 
 .score-donut-value{
   font-size:47px;
-  line-height:.98;
+  line-height:1;
+  letter-spacing:-.04em;
   font-weight:800;
   color:var(--cream);
 }
@@ -657,7 +658,7 @@ button{
 .score-donut-divider{
   width:54px;
   height:1px;
-  margin:5px 0 3px;
+  margin:4px 0;
   background:var(--charcoal);
 }
 
@@ -687,17 +688,20 @@ button{
 .email.mobile .score-donut-total{font-size:20px}
 .email.mobile .score-donut-divider{width:43px;margin:4px 0 2px}
 
-.email-contact{
-  margin-top:14px;
-  font-size:12px;
-  line-height:1.7;
+.email-contacts{
+  margin-top:24px;
+  background:#D6D9D1;
+  border-radius:14px;
+  padding:22px 12px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  font-size:11px;
+  text-align:center;
+  line-height:1.5;
 }
-
-.email-contact a{
-  color:var(--plum);
-  text-decoration:underline;
-  overflow-wrap:anywhere;
-}
+.email-contacts .person{padding:0 7px;min-width:0}
+.email-contacts .person:first-child{border-right:1px solid #8f918c}
+.email-contacts a{color:var(--charcoal);text-decoration:underline;overflow-wrap:anywhere}
 
 .divider{
   height:1px;
@@ -1980,7 +1984,8 @@ function scoreDonut(score){
       <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
         <defs>
           <linearGradient id="pulseArcGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#967581"/>
+            <stop offset="0%" stop-color="#A88792"/>
+            <stop offset="55%" stop-color="#86616F"/>
             <stop offset="100%" stop-color="#6B4D59"/>
           </linearGradient>
         </defs>
@@ -2277,9 +2282,9 @@ function renderPreview(){
         </strong>
       </p>
 
-      <div class="email-contact">
-        Paul Cope — <a href="mailto:paul@thec-lab.co.uk">paul@thec-lab.co.uk</a><br>
-        Michael Miley — <a href="mailto:michael@thec-lab.co.uk">michael@thec-lab.co.uk</a>
+      <div class="email-contacts">
+        <div class="person"><strong>Michael Miley, CEO</strong><br><br><a href="mailto:michael@thec-lab.co.uk">michael@thec-lab.co.uk</a><br>+44 (0)7860 441128</div>
+        <div class="person"><strong>Paul Cope, MD</strong><br><br><a href="mailto:paul@thec-lab.co.uk">paul@thec-lab.co.uk</a><br>+44 (0)7900 900704</div>
       </div>
 
     </div>
