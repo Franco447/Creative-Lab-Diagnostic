@@ -513,24 +513,24 @@
     }
 
 
-    /* Brand Pulse score-panel reference: fixed proportions, stronger heading */
-    .pulse-score-panel{background:var(--sage);border-radius:14px;padding:13px 23px;margin:20px 0 26px;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:168px}
-    .pulse-score-title{flex:1;min-width:0;color:#222;font-size:clamp(20px,4vw,27px);line-height:1.08;letter-spacing:-.035em}
+    /* Brand Pulse score panel — XD reference */
+    .pulse-score-panel{background:var(--sage);border-radius:14px;padding:18px 24px;margin:20px 0 26px;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:188px}
+    .pulse-score-title{flex:1;min-width:0;color:#222;font-size:clamp(23px,4.4vw,30px);line-height:1.09;letter-spacing:-.035em}
     .pulse-score-title strong,.pulse-score-title span{display:block}
     .pulse-score-title strong{font-weight:900}
     .pulse-score-title span{font-weight:400}
-    .pulse-donut{position:relative;width:146px;height:146px;flex:0 0 146px}
+    .pulse-donut{position:relative;width:157px;height:157px;flex:0 0 157px}
     .pulse-donut svg{display:block;width:100%;height:100%}
-    .pulse-donut-center{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;transform:translateY(-1px)}
-    .pulse-donut-number{font-size:50px;line-height:.96;letter-spacing:-.055em;font-weight:900;color:var(--cream)}
-    .pulse-donut-rule{width:59px;height:1px;background:var(--charcoal);margin:5px 0 4px}
-    .pulse-donut-total{font-size:29px;line-height:.95;font-weight:300;color:#111}
+    .pulse-donut-center{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;transform:translateY(0)}
+    .pulse-donut-number{font-size:52px;line-height:.88;letter-spacing:-.045em;font-weight:900;color:var(--cream)}
+    .pulse-donut-rule{width:58px;height:1px;background:var(--charcoal);margin:2px 0 4px}
+    .pulse-donut-total{font-size:29px;line-height:.99;font-weight:300;color:#111}
     @media(max-width:520px){
-      .pulse-score-panel{padding:12px;gap:6px;min-height:125px}
-      .pulse-score-title{font-size:clamp(15px,4vw,20px)}
-      .pulse-donut{width:112px;height:112px;flex-basis:112px}
+      .pulse-score-panel{padding:12px;gap:7px;min-height:138px}
+      .pulse-score-title{font-size:clamp(16px,4.2vw,22px)}
+      .pulse-donut{width:114px;height:114px;flex-basis:114px}
       .pulse-donut-number{font-size:38px}
-      .pulse-donut-rule{width:46px;margin:3px 0}
+      .pulse-donut-rule{width:43px;margin:1px 0 3px}
       .pulse-donut-total{font-size:22px}
     }
     .book-call-link{display:block;text-align:center;line-height:46px;text-decoration:none;cursor:pointer}
@@ -1588,33 +1588,33 @@
 
   function pulseArcSvg(score){
     const value=Math.max(0,Math.min(100,Number(score)||0));
-    const totalDegrees=value*3.6;
+    const angle=value*3.6;
     const radius=45;
-    const pt=(degrees)=>{
+    const position=degrees=>{
       const rad=(degrees-90)*Math.PI/180;
       return [60+radius*Math.cos(rad),60+radius*Math.sin(rad)];
     };
-    const toHex=n=>Math.round(n).toString(16).padStart(2,'0');
-    const start=[107,77,89]; // locked plum #6B4D59
-    const finish=[199,179,187]; // graduated lighter plum
-    const segments=Math.max(1,Math.ceil(totalDegrees/2));
-    let lines='';
-    for(let i=0;i<segments && value>0;i++){
-      const startAngle=totalDegrees*i/segments;
-      const endAngle=totalDegrees*(i+1)/segments;
-      const mix=segments===1?0:i/(segments-1);
-      const color='#'+start.map((n,j)=>toHex(n+(finish[j]-n)*mix)).join('');
-      const [x1,y1]=pt(startAngle);
-      const [x2,y2]=pt(endAngle+Math.min(.18,totalDegrees/segments*.2));
-      lines+=`<path d="M ${x1.toFixed(3)} ${y1.toFixed(3)} L ${x2.toFixed(3)} ${y2.toFixed(3)}" stroke="${color}" stroke-width="16" fill="none"/>`;
-    }
-    if(value>0){
-      const [sx,sy]=pt(0),[ex,ey]=pt(totalDegrees);
-      lines+=`<circle cx="${sx}" cy="${sy}" r="8" fill="#6B4D59"/>`;
-      lines+=`<circle cx="${ex}" cy="${ey}" r="8" fill="#C7B3BB"/>`;
-    }
-    return `<svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><circle cx="60" cy="60" r="45" fill="none" stroke="#F5F0E8" stroke-width="16"/>${lines}</svg>`;
+    const [endX,endY]=position(angle);
+    const gradientId='pulse-score-gradient';
+    const progress=value<=0?'':value>=100
+      ? `<circle cx="60" cy="60" r="45" fill="none" stroke="url(#${gradientId})" stroke-width="16"/>`
+      : `<path d="M 60 15 A 45 45 0 ${angle>180?1:0} 1 ${endX.toFixed(3)} ${endY.toFixed(3)}"
+          fill="none" stroke="url(#${gradientId})" stroke-width="16" stroke-linecap="round"/>`;
+    // Pale at the trailing 12 o'clock start; deep plum at the moving tip.
+    // One continuous path eliminates the fine seams from the previous segmented build.
+    return `<svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+      <defs><linearGradient id="${gradientId}" gradientUnits="userSpaceOnUse"
+          x1="60" y1="15" x2="${Math.abs(endX-60)<0.01&&Math.abs(endY-15)<0.01?105:endX.toFixed(3)}"
+          y2="${Math.abs(endX-60)<0.01&&Math.abs(endY-15)<0.01?60:endY.toFixed(3)}">
+        <stop offset="0%" stop-color="#C7B3BB"/>
+        <stop offset="100%" stop-color="#6B4D59"/>
+      </linearGradient></defs>
+      <circle cx="60" cy="60" r="45" fill="none" stroke="#F5F0E8" stroke-width="16"/>
+      ${progress}
+    </svg>`;
   }
+
+  
 
   function pulseDonut(score){
     const shown=Math.round(Math.max(0,Math.min(100,Number(score)||0)));
