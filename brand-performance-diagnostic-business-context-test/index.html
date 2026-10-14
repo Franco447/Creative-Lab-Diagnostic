@@ -512,6 +512,34 @@
       height:86px;
     }
 
+
+    /* Brand Pulse: approved email score graphic only */
+    .pulse-score-panel{
+      background:var(--sage);border-radius:14px;padding:16px 25px;
+      margin:20px 0 26px;display:flex;align-items:center;
+      justify-content:space-between;gap:12px;
+    }
+    .pulse-score-title{flex:1;min-width:0;color:var(--charcoal);font-size:clamp(15px,3.3vw,23px);line-height:1.14;letter-spacing:-.025em}
+    .pulse-score-title strong,.pulse-score-title span{display:block}
+    .pulse-score-title strong{font-weight:800}
+    .pulse-score-title span{font-weight:400}
+    .pulse-donut{position:relative;width:160px;height:160px;flex:0 0 160px}
+    .pulse-donut svg{display:block;width:100%;height:100%}
+    .pulse-donut-center{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;transform:translateY(-1px)}
+    .pulse-donut-number{font-size:57px;line-height:1;letter-spacing:-.04em;font-weight:800;color:var(--cream)}
+    .pulse-donut-rule{width:65px;height:1px;background:var(--charcoal);margin:4px 0}
+    .pulse-donut-total{font-size:31px;line-height:1;font-weight:300;color:#111}
+    @media(max-width:520px){
+      .pulse-score-panel{padding:13px 13px;gap:7px}
+      .pulse-score-title{font-size:clamp(13px,3.6vw,18px)}
+      .pulse-donut{width:112px;height:112px;flex-basis:112px}
+      .pulse-donut-number{font-size:40px}
+      .pulse-donut-rule{width:46px;margin:3px 0}
+      .pulse-donut-total{font-size:22px}
+    }
+    .book-call-link{display:block;text-align:center;line-height:46px;text-decoration:none;cursor:pointer}
+    .contact-email{color:inherit;text-decoration:underline;overflow-wrap:anywhere}
+
     /* REPORT ELEMENTS */
 
     .area-headline{
@@ -1561,6 +1589,30 @@
   }
 
 
+  function pulseDonut(score){
+    const value=Math.max(0,Math.min(100,Number(score)||0));
+    const shown=Math.round(value);
+    const circumference=2*Math.PI*45;
+    const progress=circumference*value/100;
+    return `
+      <div class="pulse-donut" role="img" aria-label="Brand Pulse performance score: ${shown} out of 100">
+        <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+          <defs><linearGradient id="pulseScoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#A88792"/>
+            <stop offset="55%" stop-color="#86616F"/>
+            <stop offset="100%" stop-color="#6B4D59"/>
+          </linearGradient></defs>
+          <circle cx="60" cy="60" r="45" fill="none" stroke="#F5F0E8" stroke-width="16"/>
+          <circle cx="60" cy="60" r="45" fill="none" stroke="url(#pulseScoreGradient)"
+            stroke-width="16" stroke-linecap="round"
+            stroke-dasharray="${value===0?0:progress} ${circumference}" transform="rotate(-90 60 60)"/>
+        </svg>
+        <div class="pulse-donut-center" aria-hidden="true">
+          <div class="pulse-donut-number">${shown}</div><div class="pulse-donut-rule"></div><div class="pulse-donut-total">100</div>
+        </div>
+      </div>`;
+  }
+
   async function renderEmailPreview(){
 
     app.classList.add(
@@ -1902,7 +1954,7 @@
 
 
               <p>
-                Thank you for completing our Brand Performance Diagnostic.
+                Thank you for completing Brand Pulse: our Performance Diagnostic.
               </p>
 
 
@@ -1924,43 +1976,10 @@
               </p>
 
 
-              <div class="score-panel">
-
-                <div class="score-panel-title">
-                  Your Brand Performance Score
-                </div>
-
-
-                <div class="score-panel-row">
-
-                  <div class="score-panel-score">
-
-                    <div class="score-panel-number">
-                      ${a.overall}
-                    </div>
-
-                    <div class="score-panel-outof">
-                      /100
-                    </div>
-
-                  </div>
-
-
-                  <div
-                    class="score-panel-bars"
-                    aria-hidden="true"
-                  >
-
-                    ${scorePanelBars(
-                      a.overall
-                    )}
-
-                  </div>
-
-                </div>
-
+              <div class="pulse-score-panel">
+                <div class="pulse-score-title"><strong>Your Brand Pulse</strong><span>Performance Score</span></div>
+                ${pulseDonut(a.overall)}
               </div>
-
 
               <div class="ai-report">
 
@@ -2086,88 +2105,21 @@
                 "></div>
 
 
-                <p>
-                  We hope this gives you a useful view of where the brand stands today and,
-                  more importantly, where the opportunity may lie.
-                </p>
-
-
-                <p>
-                  If you’re keen to understand how these findings could shape your
-                  <strong>Growth Pathway</strong> — as well as explore what
-                  <strong>Now / Next / Nurture</strong> could look like for your business —
-                  we’d be happy to arrange a no-obligation call.
-                </p>
-
-
-                <button
-                  class="book-call"
-                  type="button"
-                  aria-label="Book a Call"
-                >
-                  Book a Call
-                </button>
-
-
-                <div class="signoff">
-                  Kind regards,<br>
-                  <strong>
-                    The Creative Lab
-                  </strong>
-                </div>
-
-
-                <div style="
-                  margin-top:24px;
-                  background:#D6D9D1;
-                  border-radius:14px;
-                  padding:24px 20px;
-                  display:grid;
-                  grid-template-columns:1fr 1fr;
-                  gap:0;
-                  text-align:center;
-                  font-size:13px;
-                  line-height:1.45;
-                ">
-
-                  <div style="
-                    padding:0 18px;
-                    border-right:1px solid #8f918c;
-                  ">
-
-                    <strong>
-                      Michael Miley, CEO
-                    </strong>
-
-                    <br><br>
-
-                    michael@thec-lab.co.uk
-
-                    <br>
-
-                    +44 (0)7860 441128
-
+                <p>We hope this report has given you a clearer picture of where your brand stands today and where the opportunities for growth might lie.</p>
+                <p>Once you've had a chance to look through it, we'd love to spend 30 minutes talking you through the findings and exploring what you'd prioritise to move your business forward.</p>
+                <p>Just click below to find a time that works for you.</p>
+                <a class="book-call book-call-link" href="https://calendly.com/paultcl/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
+                <p>Look forward to speaking soon.</p>
+                <div class="signoff">Kind regards,<br><strong>The Creative Lab</strong></div>
+                <div style="margin-top:24px;background:#D6D9D1;border-radius:14px;padding:24px 20px;display:grid;grid-template-columns:1fr 1fr;gap:0;text-align:center;font-size:13px;line-height:1.45;">
+                  <div style="padding:0 12px;border-right:1px solid #8f918c;min-width:0;">
+                    <strong>Michael Miley, CEO</strong><br><br>
+                    <a class="contact-email" href="mailto:michael@thec-lab.co.uk">michael@thec-lab.co.uk</a><br>+44 (0)7860 441128
                   </div>
-
-
-                  <div style="
-                    padding:0 18px;
-                  ">
-
-                    <strong>
-                      Paul Cope, MD
-                    </strong>
-
-                    <br><br>
-
-                    paul@thec-lab.co.uk
-
-                    <br>
-
-                    +44 (0)7900 900704
-
+                  <div style="padding:0 12px;min-width:0;">
+                    <strong>Paul Cope, MD</strong><br><br>
+                    <a class="contact-email" href="mailto:paul@thec-lab.co.uk">paul@thec-lab.co.uk</a><br>+44 (0)7900 900704
                   </div>
-
                 </div>
 
               </div>
