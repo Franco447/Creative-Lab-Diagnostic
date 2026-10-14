@@ -593,58 +593,111 @@ button{
 
 .score-panel{
   margin:21px 0 27px;
-  padding:17px 22px 19px;
+  padding:15px 20px;
   border-radius:13px;
   background:var(--sage);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
 }
 
 .score-panel-title{
-  margin-bottom:10px;
-  font-size:13px;
-  font-weight:700;
+  flex:1;
+  min-width:0;
+  color:var(--charcoal);
+  font-size:clamp(13px,1.55vw,21px);
+  line-height:1.14;
+  letter-spacing:-.03em;
 }
 
-.score-row{
+.score-panel-title strong,
+.score-panel-title span{
+  display:block;
+}
+
+.score-panel-title strong{
+  font-weight:800;
+}
+
+.score-panel-title span{
+  font-weight:400;
+}
+
+.score-donut{
+  position:relative;
+  width:132px;
+  height:132px;
+  flex:0 0 132px;
+}
+
+.score-donut svg{
+  display:block;
+  width:100%;
+  height:100%;
+}
+
+.score-donut-centre{
+  position:absolute;
+  inset:0;
   display:flex;
-  justify-content:space-between;
-  align-items:flex-end;
-  gap:15px;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding-top:3px;
 }
 
-.score-number{
-  font-size:64px;
-  line-height:.82;
-  font-weight:900;
+.score-donut-value{
+  font-size:47px;
+  line-height:.98;
+  font-weight:800;
   color:var(--cream);
 }
 
-.score-number span{
-  font-size:32px;
+.score-donut-divider{
+  width:54px;
+  height:1px;
+  margin:5px 0 3px;
+  background:var(--charcoal);
+}
+
+.score-donut-total{
+  font-size:26px;
   font-weight:300;
+  line-height:1;
   color:#111;
 }
 
-.score-bars{
-  display:flex;
-  align-items:flex-end;
-  gap:5px;
+.email.mobile .score-panel{
+  padding:12px;
+  gap:7px;
 }
 
-.score-bars span{
-  display:block;
-  width:15px;
-  background:var(--sand);
+.email.mobile .score-panel-title{
+  font-size:13px;
 }
 
-.score-bars span.filled{
-  background:var(--plum);
+.email.mobile .score-donut{
+  width:105px;
+  height:105px;
+  flex-basis:105px;
 }
 
-.score-bars span:nth-child(1){height:15px}
-.score-bars span:nth-child(2){height:29px}
-.score-bars span:nth-child(3){height:43px}
-.score-bars span:nth-child(4){height:57px}
-.score-bars span:nth-child(5){height:71px}
+.email.mobile .score-donut-value{font-size:36px}
+.email.mobile .score-donut-total{font-size:20px}
+.email.mobile .score-donut-divider{width:43px;margin:4px 0 2px}
+
+.email-contact{
+  margin-top:14px;
+  font-size:12px;
+  line-height:1.7;
+}
+
+.email-contact a{
+  color:var(--plum);
+  text-decoration:underline;
+  overflow-wrap:anywhere;
+}
 
 .divider{
   height:1px;
@@ -1776,7 +1829,7 @@ function renderEditor(){
         line-height:1.6;
         color:#555;
       ">
-        Thank you for completing our Brand Performance Diagnostic.
+        Thank you for completing Brand Pulse: our Performance Diagnostic.
       </p>
 
       <p style="
@@ -1817,7 +1870,7 @@ function renderEditor(){
         line-height:1.6;
         color:#555;
       ">
-        We hope this gives you a useful view of where the brand stands today and, more importantly, where the opportunity may lie.
+        We hope this report has given you a clearer picture of where your brand stands today and where the opportunities for growth might lie.
       </p>
 
       <p style="
@@ -1825,7 +1878,15 @@ function renderEditor(){
         line-height:1.6;
         color:#555;
       ">
-        If you’re keen to understand how these findings could shape your Growth Pathway — as well as explore what Now / Next / Nurture could look like for your business — we’d be happy to arrange a no-obligation call.
+        Once you've had a chance to look through it, we'd love to spend 30 minutes talking you through the findings and exploring what you'd prioritise to move your business forward.
+      </p>
+
+      <p style="font-size:13px;line-height:1.6;color:#555;">
+        Just click below to find a time that works for you.
+      </p>
+
+      <p style="font-size:13px;line-height:1.6;color:#555;">
+        Look forward to speaking soon.
       </p>
 
       <p style="
@@ -1906,32 +1967,36 @@ function renderEditor(){
 }
 
 
-function scoreBars(score){
+function scoreDonut(score){
 
-  const filled=
-    Math.min(
-      5,
-      Math.floor(
-        Number(score || 0)/20
-      )
-    );
+  const value=Math.max(0,Math.min(100,Number(score)||0));
+  const shown=Math.round(value);
+  const radius=45;
+  const circumference=2*Math.PI*radius;
+  const progress=circumference*value/100;
 
-
-  return Array.from(
-    {length:5},
-    (_,i)=>`
-
-      <span
-        class="
-          ${i<filled
-            ? 'filled'
-            : ''
-          }
-        "
-      ></span>
-
-    `
-  ).join('');
+  return `
+    <div class="score-donut" role="img" aria-label="Brand Pulse performance score: ${shown} out of 100">
+      <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+        <defs>
+          <linearGradient id="pulseArcGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#967581"/>
+            <stop offset="100%" stop-color="#6B4D59"/>
+          </linearGradient>
+        </defs>
+        <circle cx="60" cy="60" r="45" fill="none" stroke="#F5F0E8" stroke-width="16"/>
+        <circle cx="60" cy="60" r="45" fill="none"
+          stroke="url(#pulseArcGradient)" stroke-width="16" stroke-linecap="round"
+          stroke-dasharray="${value===0 ? 0 : progress} ${circumference}"
+          transform="rotate(-90 60 60)"/>
+      </svg>
+      <div class="score-donut-centre" aria-hidden="true">
+        <div class="score-donut-value">${shown}</div>
+        <div class="score-donut-divider"></div>
+        <div class="score-donut-total">100</div>
+      </div>
+    </div>
+  `;
 }
 
 
@@ -2020,7 +2085,7 @@ function renderPreview(){
 
 
       <p>
-        Thank you for completing our Brand Performance Diagnostic.
+        Thank you for completing Brand Pulse: our Performance Diagnostic.
       </p>
 
 
@@ -2042,32 +2107,11 @@ function renderPreview(){
       <div class="score-panel">
 
         <div class="score-panel-title">
-          Your Brand Performance Score
+          <strong>Your Brand Pulse</strong>
+          <span>Performance Score</span>
         </div>
 
-
-        <div class="score-row">
-
-          <div class="score-number">
-
-            ${selectedReport.overall_score}
-
-            <span>
-              /100
-            </span>
-
-          </div>
-
-
-          <div class="score-bars">
-
-            ${scoreBars(
-              selectedReport.overall_score
-            )}
-
-          </div>
-
-        </div>
+        ${scoreDonut(selectedReport.overall_score)}
 
       </div>
 
@@ -2206,18 +2250,24 @@ function renderPreview(){
 
 
       <p>
-        We hope this gives you a useful view of where the brand stands today and, more importantly, where the opportunity may lie.
+        We hope this report has given you a clearer picture of where your brand stands today and where the opportunities for growth might lie.
       </p>
-
 
       <p>
-        If you’re keen to understand how these findings could shape your <strong>Growth Pathway</strong> — as well as explore what <strong>Now / Next / Nurture</strong> could look like for your business — we’d be happy to arrange a no-obligation call.
+        Once you've had a chance to look through it, we'd love to spend 30 minutes talking you through the findings and exploring what you'd prioritise to move your business forward.
       </p>
 
+      <p>
+        Just click below to find a time that works for you.
+      </p>
 
-      <div class="book-call">
+      <a class="book-call" href="https://calendly.com/paultcl/30min" target="_blank" rel="noopener noreferrer" style="display:block;text-decoration:none;">
         Book a Call
-      </div>
+      </a>
+
+      <p>
+        Look forward to speaking soon.
+      </p>
 
 
       <p>
@@ -2226,6 +2276,11 @@ function renderPreview(){
           The Creative Lab
         </strong>
       </p>
+
+      <div class="email-contact">
+        Paul Cope — <a href="mailto:paul@thec-lab.co.uk">paul@thec-lab.co.uk</a><br>
+        Michael Miley — <a href="mailto:michael@thec-lab.co.uk">michael@thec-lab.co.uk</a>
+      </div>
 
     </div>
 
