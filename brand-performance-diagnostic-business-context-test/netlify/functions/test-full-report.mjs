@@ -39,24 +39,30 @@ function drawScoreOverlay(rows, w, h, value) {
     for(let k=0;k<3;k++) rows[at+k]=Math.round((colour[k]*t+rows[at+k]*previousAlpha*inv)/combined);
     rows[at+3]=Math.round(combined*255);
   };
-  const drawText = (text,kind,centreX,top,colour,gap) => {
+  const drawText = (text,kind,centreX,top,colour,gap,scale=1) => {
     const glyphs = [...String(text)].map(ch=>{const [off,w0,h0]=SCORE_GLYPH_INFO[kind+ch];return [off,w0,h0];});
-    const width=glyphs.reduce((n,g)=>n+g[1],0)+gap*(glyphs.length-1);
+    const widths=glyphs.map(g=>Math.round(g[1]*scale));
+    const gapPx=Math.round(gap*scale);
+    const width=widths.reduce((n,w0)=>n+w0,0)+gapPx*(glyphs.length-1);
     let left=Math.round(centreX-width/2);
-    for(const [off,gw,gh] of glyphs) {
-      const y0=top+Math.round((kind==='main'?72:39-gh)/2);
-      for(let y=0;y<gh;y++) for(let x=0;x<gw;x++) {
-        const a=SCORE_GLYPHS[off+y*gw+x];
+    for(let i=0;i<glyphs.length;i++) {
+      const [off,gw,gh]=glyphs[i], tw=widths[i],th=Math.round(gh*scale);
+      const y0=top+Math.round((kind==='main'?Math.round(72*scale):Math.round(39*scale)-th)/2);
+      for(let y=0;y<th;y++) for(let x=0;x<tw;x++) {
+        // Sample the original anti-aliased mask instead of replacing the approved lettering.
+        const sx=Math.min(gw-1,Math.floor((x+.5)/scale));
+        const sy=Math.min(gh-1,Math.floor((y+.5)/scale));
+        const a=SCORE_GLYPHS[off+sy*gw+sx];
         if(a) setPixel(left+x,y0+y,colour,a);
       }
-      left+=gw+gap;
+      left+=tw+gapPx;
     }
   };
-  drawText(value,'main',w/2,72,hex(CREAM),5);
-  // Thin dark divider and lighter 100, matching the existing approved score hierarchy.
+  // Make room between the score and its denominator, without changing the ring.
+  drawText(value,'main',w/2,65,hex(CREAM),5,0.80);
   const divider=hex(DARK);
-  for(let y=164;y<166;y++)for(let x=92;x<202;x++)setPixel(x,y,divider,255);
-  drawText('100','total',w/2,184,hex('#111111'),3);
+  for(let y=165;y<167;y++)for(let x=117;x<177;x++)setPixel(x,y,divider,255);
+  drawText('100','total',w/2,183,hex('#111111'),3,0.86);
 }
 function donutPng(score){
  const w=294,h=294,v=num(score),rows=Buffer.alloc((w*4+1)*h),a=hex('#C7B3BB'),b=hex(PLUM),cream=hex(CREAM);
