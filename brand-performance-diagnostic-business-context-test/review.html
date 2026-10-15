@@ -2740,5 +2740,76 @@ checkSession();
 
 </script>
 
+<script type="module">
+  import { createClient } from
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+  const supabase = createClient(
+    'https://zhhheesxkpynjrohktrg.supabase.co',
+    'sb_publishable_mw9ROaaA9D-HFC3R9_TDGg_YFt4BjwG',
+    {
+      auth: {
+        persistSession: true,
+        storageKey: 'sb-zhhheesxkpynjrohktrg-auth-token'
+      }
+    }
+  );
+
+  const button = document.createElement('button');
+  button.textContent = 'Send Test Email';
+  button.type = 'button';
+
+  Object.assign(button.style, {
+    position: 'fixed',
+    bottom: '24px',
+    right: '24px',
+    zIndex: '9999',
+    padding: '14px 20px',
+    background: '#6B4D59',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer'
+  });
+
+  document.body.appendChild(button);
+
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    button.textContent = 'Sending test...';
+
+    try {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error || !data.session?.access_token) {
+        throw new Error('Please sign in again.');
+      }
+
+      const response = await fetch(
+        '/.netlify/functions/test-brandpulse-email',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${data.session.access_token}`
+          }
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Email test failed.');
+      }
+
+      alert(result.message);
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Send Test Email';
+    }
+  });
+</script>
+
 </body>
 </html>
