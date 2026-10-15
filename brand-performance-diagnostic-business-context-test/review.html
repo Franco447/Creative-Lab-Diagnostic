@@ -1577,6 +1577,7 @@ function renderDiagnosticCards(){
 
 
 function openReport(report){
+  window.brandPulseSelectedReportId = report.id;
 
   selectedReport=
     JSON.parse(
@@ -2786,13 +2787,17 @@ checkSession();
       }
 
       const response = await fetch(
-        '/.netlify/functions/test-brandpulse-email',
+        '/.netlify/functions/test-full-report',
         {
           method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${data.session.access_token}`
           }
-        }
+        },
+        body: JSON.stringify({
+  report_id: window.brandPulseSelectedReportId
+})
       );
 
       const result = await response.json();
