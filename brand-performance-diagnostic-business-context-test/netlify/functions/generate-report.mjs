@@ -302,6 +302,28 @@ async function finishReport(data, client, diagnostic) {
     });
 }
 
+// Separate bounded web research from report writing. A failed research job NEVER
+// becomes an unresearched report presented as website-informed.
+function responseOutputText(data) {
+  return data.output_text || (data.output || [])
+    .flatMap(item => item.content || [])
+    .filter(c => c.type === "output_text")
+    .map(c => c.text || "").join("\n").trim();
+}
+
+async function openaiRequest(apiKey, payload) {
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(data?.error?.message || `OpenAI request failed (${response.status}).`);
+  }
+  return data;
+}
+
 export default async (req) => {
 
   if (req.method !== "POST") {
@@ -350,6 +372,24 @@ export default async (req) => {
     }
 
 
+    if (body?.action === "research") {
+      const domain = normaliseDomain(client.website);
+      const instruction = `Research only the official company site ${client.website} for the company ${client.company}.
+Search or inspect this domain only. Return a short factual briefing (maximum 450 words)
+covering what it offers, whom it serves, stated positioning, products/services,
+and claims supported by the official site. Distinguish company claims from proof.
+Do not invent facts. If the site cannot be researched reliably, clearly state
+RESEARCH_UNAVAILABLE and do not invent a profile. Do not write a diagnostic report.`;
+      const job = await openaiRequest(apiKey, {
+        model: Netlify.env.get("OPENAI_MODEL") || "gpt-5.1",
+        background: true,
+        tools: [{type:"web_search", filters:{allowed_domains:[domain]}, search_context_size:"low"}],
+        input: instruction
+      });
+      if (!job.id) return jsonResponse(502,{error:"Research did not return a job ID."});
+      return jsonResponse(202,{status:"processing",stage:"research",response_id:job.id});
+    }
+
     if (body?.action === "poll") {
       const id = String(body.response_id || "");
       if (!/^resp_[a-zA-Z0-9_-]{6,150}$/.test(id)) {
@@ -372,15 +412,25 @@ export default async (req) => {
         });
       }
       if (data.status !== "completed") {
-        return jsonResponse(202, {status: "processing", response_id: id});
+        return jsonResponse(202, {status: "processing", stage: body.stage === "research" ? "research" : "writing", response_id: id});
+      }
+      if (body.stage === "research") {
+        const briefing = responseOutputText(data);
+        if (!briefing || briefing.includes("RESEARCH_UNAVAILABLE")) {
+          return jsonResponse(422, {error:"We couldn't verify enough company information from this website to produce a researched report."});
+        }
+        return jsonResponse(200,{status:"research_complete",stage:"research",research:briefing.slice(0,5500)});
       }
       return await finishReport(data, client, diagnostic);
     }
 
-    const domain =
-      normaliseDomain(
-        client.website
-      );
+    // Stage two must have a completed, readable research briefing.
+    // Refuse to generate an apparently researched report without one.
+    const researchBriefing = typeof body.research === "string" ? body.research.trim() : "";
+    if (researchBriefing.length < 50 || researchBriefing.length > 5500) {
+      return jsonResponse(400,{error:"Verified website research is required before report writing."});
+    }
+
 
 
     const prompt = `
@@ -432,7 +482,7 @@ ${diagnostic.answers
 
 TASK
 
-Use web search to review the company's own website and establish only the public business context clearly supported there.
+Use the completed website research briefing supplied below. The research was carried out as a separate step. Do not conduct further web searches. Establish only the public business context clearly supported by that briefing.
 
 This may include:
 
@@ -847,6 +897,9 @@ FINAL RULES
 - Never include citations, links or source references in any JSON value.
 
 Return ONLY valid JSON matching the requested schema.
+
+WEBSITE RESEARCH BRIEFING (internal, not client-facing):
+${researchBriefing}
 `.trim();
 
 
@@ -871,22 +924,6 @@ Return ONLY valid JSON matching the requested schema.
               model:
                 Netlify.env.get("OPENAI_MODEL") ||
                 "gpt-5.1",
-
-              tools: [
-                {
-                  type:
-                    "web_search",
-
-                  filters: {
-                    allowed_domains: [
-                      domain
-                    ]
-                  },
-
-                  search_context_size:
-                    "medium"
-                }
-              ],
 
               text: {
                 format: {
@@ -1028,7 +1065,7 @@ Return ONLY valid JSON matching the requested schema.
     if (!data?.id) {
       return jsonResponse(502, {error: "OpenAI did not return a report job ID."});
     }
-    return jsonResponse(202, {status: "processing", response_id: data.id});
+    return jsonResponse(202, {status: "processing", stage: "writing", response_id: data.id});
 
 
   } catch (err) {
