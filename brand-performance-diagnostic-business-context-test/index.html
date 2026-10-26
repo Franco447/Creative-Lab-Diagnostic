@@ -1757,38 +1757,43 @@
 
     try{
 
-      const response=
-        await fetch(
-          '/.netlify/functions/generate-report',
-          {
-
-            method:'POST',
-
-            headers:{
-              'Content-Type':
-                'application/json'
-            },
-
-            body:
-              JSON.stringify(
-                payload
-              )
-          }
-        );
-
-
-      const data=
-        await response.json();
-
-
-      if(!response.ok){
-
-        throw new Error(
-          data.error ||
-          'Unable to generate report.'
-        );
+      const endpoint='/.netlify/functions/generate-report';
+      async function sendReportRequest(requestPayload){
+        const response=await fetch(endpoint,{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(requestPayload)
+        });
+        const raw=await response.text();
+        let data;
+        try { data=JSON.parse(raw); }
+        catch {
+          throw new Error(response.status===504
+            ? 'Report generation timed out. Please try again.'
+            : 'The report service returned an unexpected response ('+response.status+').');
+        }
+        if(!response.ok){
+          throw new Error(data.error || 'Unable to generate report.');
+        }
+        return data;
       }
 
+      let data=await sendReportRequest(payload);
+      if(data.status==='processing'){
+        const responseId=data.response_id;
+        if(!responseId) throw new Error('Missing report job ID.');
+        const deadline=Date.now()+8*60*1000;
+        while(data.status==='processing'){
+          if(Date.now()>deadline){
+            throw new Error('The report is taking longer than expected. Please try again later.');
+          }
+          await new Promise(resolve=>setTimeout(resolve,3500));
+          data=await sendReportRequest({
+            action:'poll',response_id:responseId,
+            client:payload.client,diagnostic:payload.diagnostic
+          });
+        }
+      }
 
       const report=
         data.report || {};
