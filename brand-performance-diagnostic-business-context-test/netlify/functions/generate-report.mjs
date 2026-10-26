@@ -407,8 +407,9 @@ RESEARCH_UNAVAILABLE and do not invent a profile. Do not write a diagnostic repo
         });
       }
       if (data.status === "failed" || data.status === "cancelled" || data.status === "incomplete") {
+        const reason = data?.error?.message || data?.incomplete_details?.reason || data.status;
         return jsonResponse(502, {
-          error: data?.error?.message || "Report generation did not finish. Please try again."
+          error: `OpenAI ${body.stage === "research" ? "research" : "writing"} ended with status ${data.status}: ${reason}. No report has been saved.`
         });
       }
       if (data.status !== "completed") {
