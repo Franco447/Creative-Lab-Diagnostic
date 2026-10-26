@@ -1778,22 +1778,39 @@
         return data;
       }
 
-      let data=await sendReportRequest(payload);
-      if(data.status==='processing'){
-        const responseId=data.response_id;
-        if(!responseId) throw new Error('Missing report job ID.');
-        const deadline=Date.now()+8*60*1000;
-        while(data.status==='processing'){
-          if(Date.now()>deadline){
-            throw new Error('The report is taking longer than expected. Please try again later.');
+      async function pollJob(initial, stage, seconds) {
+        let result=initial;
+        const deadline=Date.now()+seconds*1000;
+        while(result.status==='processing') {
+          if(Date.now()>deadline) {
+            throw new Error(stage==='research'
+              ? 'Website research did not complete. No report has been generated.'
+              : 'Report writing did not complete. No report has been saved.');
           }
           await new Promise(resolve=>setTimeout(resolve,3500));
-          data=await sendReportRequest({
-            action:'poll',response_id:responseId,
+          result=await sendReportRequest({
+            action:'poll',stage,response_id:result.response_id,
             client:payload.client,diagnostic:payload.diagnostic
           });
         }
+        return result;
       }
+      // Stage 1: research the client's official domain with a separate job.
+      let research=await pollJob(
+        await sendReportRequest({...payload,action:'research'}),
+        'research',180
+      );
+      if(research.status!=='research_complete' || !research.research) {
+        throw new Error('Website research could not be completed.');
+      }
+      const loadingLabel=document.querySelector('.ai-loading span');
+      if(loadingLabel) loadingLabel.textContent='Research complete. Writing your personalised report…';
+      // Stage 2: write with Mike's approved voice and the completed research.
+      let data=await pollJob(
+        await sendReportRequest({...payload,action:'write',research:research.research}),
+        'writing',180
+      );
+      if(!data.report) throw new Error('The report did not return usable content.');
 
       const report=
         data.report || {};
