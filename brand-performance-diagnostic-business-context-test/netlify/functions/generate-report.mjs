@@ -227,6 +227,58 @@ async function saveDraftToSupabase({
 
 
 
+// Reject structurally valid JSON containing broken or missing client-facing text.
+// This gate does not assess strategic judgement; reviewers still assess the report.
+const REPORT_LIMITS = {
+  score_meaning: 90, stands_out: 85,
+  strategic_headline: 14, consumer_headline: 14, market_headline: 14,
+  growth_headline: 14, commercial_headline: 14,
+  strategic_commentary: 77, consumer_commentary: 77,
+  market_commentary: 77, growth_commentary: 77, commercial_commentary: 77,
+  focus_next_intro: 90, now: 65, next: 65, nurture: 65
+};
+const REPORT_MIN_WORDS = {
+  score_meaning: 20, stands_out: 20,
+  strategic_headline: 2, consumer_headline: 2, market_headline: 2,
+  growth_headline: 2, commercial_headline: 2,
+  strategic_commentary: 24, consumer_commentary: 24,
+  market_commentary: 24, growth_commentary: 24, commercial_commentary: 24,
+  focus_next_intro: 20, now: 18, next: 18, nurture: 18
+};
+
+function validateReport(report) {
+  const errors = [];
+  if (!report || typeof report !== "object" || Array.isArray(report)) {
+    return ["Report must be an object."];
+  }
+  for (const [key, maxWords] of Object.entries(REPORT_LIMITS)) {
+    const value = report[key];
+    if (typeof value !== "string" || !value.trim()) {
+      errors.push(`${key}: missing text`);
+      continue;
+    }
+    const text = value.trim();
+    const wordCount = text.split(/\s+/u).filter(Boolean).length;
+    if (wordCount < REPORT_MIN_WORDS[key]) {
+      errors.push(`${key}: too short (${wordCount} words)`);
+    }
+    if (wordCount > maxWords) {
+      errors.push(`${key}: exceeds ${maxWords}-word limit`);
+    }
+    if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}(?:[T\s].*)?$/u.test(text) ||
+        /^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/u.test(text)) {
+      errors.push(`${key}: date instead of report text`);
+    }
+    if (/^(?:n\/?a|none|null|undefined|tbd|todo|placeholder|coming soon|pending|not applicable|\.{3,}|-+)\.?$/iu.test(text)) {
+      errors.push(`${key}: placeholder text`);
+    }
+    if (/https?:\/\/|www\.|cite|【[^】]*】/iu.test(text)) {
+      errors.push(`${key}: contains client-facing link or citation`);
+    }
+  }
+  return errors;
+}
+
 // Process a finished background response using the existing report parsing and draft save.
 async function finishReport(data, client, diagnostic) {
     const outputText =
@@ -277,6 +329,14 @@ async function finishReport(data, client, diagnostic) {
     report =
       cleanReport(report);
 
+    const validationErrors = validateReport(report);
+    if (validationErrors.length) {
+      console.error("Brand Pulse report validation failed", validationErrors);
+      return jsonResponse(422, {
+        error: "The generated report did not pass quality checks. No report has been saved.",
+        details: validationErrors
+      });
+    }
 
     /*
       Save the completed AI report as a draft
