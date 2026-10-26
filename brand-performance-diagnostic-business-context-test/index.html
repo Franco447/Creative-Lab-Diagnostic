@@ -1785,7 +1785,7 @@
           if(Date.now()>deadline) {
             throw new Error(stage==='research'
               ? 'Website research did not complete. No report has been generated.'
-              : 'Report writing did not complete. No report has been saved.');
+              : 'OpenAI is still writing after seven minutes. No completion was confirmed, so no report has been saved. Please contact The Creative Lab rather than submitting again.');
           }
           await new Promise(resolve=>setTimeout(resolve,3500));
           result=await sendReportRequest({
@@ -1808,7 +1808,7 @@
       // Stage 2: write with Mike's approved voice and the completed research.
       let data=await pollJob(
         await sendReportRequest({...payload,action:'write',research:research.research}),
-        'writing',180
+        'writing',420
       );
       if(!data.report) throw new Error('The report did not return usable content.');
 
