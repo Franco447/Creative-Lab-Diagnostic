@@ -226,6 +226,82 @@ async function saveDraftToSupabase({
 
 
 
+
+// Process a finished background response using the existing report parsing and draft save.
+async function finishReport(data, client, diagnostic) {
+    const outputText =
+      data.output_text ||
+      (data.output || [])
+        .flatMap(
+          item =>
+            item.content || []
+        )
+        .filter(
+          c =>
+            c.type === "output_text"
+        )
+        .map(
+          c =>
+            c.text || ""
+        )
+        .join("\n")
+        .trim();
+
+
+    if (!outputText) {
+
+      return jsonResponse(502, {
+        error:
+          "No report data was returned."
+      });
+    }
+
+
+    let report;
+
+
+    try {
+
+      report =
+        JSON.parse(outputText);
+
+    } catch {
+
+      return jsonResponse(502, {
+        error:
+          "The report data could not be parsed."
+      });
+    }
+
+
+    report =
+      cleanReport(report);
+
+
+    /*
+      Save the completed AI report as a draft
+      for internal review before client delivery.
+    */
+    const savedDraft =
+      await saveDraftToSupabase({
+        client,
+        diagnostic,
+        report
+      });
+
+
+    return jsonResponse(200, {
+
+      report,
+
+      report_id:
+        savedDraft.id,
+
+      scheduled_send_at:
+        savedDraft.scheduled_send_at
+    });
+}
+
 export default async (req) => {
 
   if (req.method !== "POST") {
@@ -273,6 +349,33 @@ export default async (req) => {
       });
     }
 
+
+    if (body?.action === "poll") {
+      const id = String(body.response_id || "");
+      if (!/^resp_[a-zA-Z0-9_-]{6,150}$/.test(id)) {
+        return jsonResponse(400, {error: "Invalid report job ID."});
+      }
+
+      const result = await fetch(
+        `https://api.openai.com/v1/responses/${encodeURIComponent(id)}`,
+        { headers: { Authorization: `Bearer ${apiKey}` } }
+      );
+      const data = await result.json().catch(() => null);
+      if (!result.ok) {
+        return jsonResponse(result.status, {
+          error: data?.error?.message || "Unable to check report progress."
+        });
+      }
+      if (data.status === "failed" || data.status === "cancelled" || data.status === "incomplete") {
+        return jsonResponse(502, {
+          error: data?.error?.message || "Report generation did not finish. Please try again."
+        });
+      }
+      if (data.status !== "completed") {
+        return jsonResponse(202, {status: "processing", response_id: id});
+      }
+      return await finishReport(data, client, diagnostic);
+    }
 
     const domain =
       normaliseDomain(
@@ -893,6 +996,8 @@ Return ONLY valid JSON matching the requested schema.
                 }
               },
 
+              background: true,
+
               input:
                 prompt
             })
@@ -919,77 +1024,11 @@ Return ONLY valid JSON matching the requested schema.
     }
 
 
-    const outputText =
-      data.output_text ||
-      (data.output || [])
-        .flatMap(
-          item =>
-            item.content || []
-        )
-        .filter(
-          c =>
-            c.type === "output_text"
-        )
-        .map(
-          c =>
-            c.text || ""
-        )
-        .join("\n")
-        .trim();
-
-
-    if (!outputText) {
-
-      return jsonResponse(502, {
-        error:
-          "No report data was returned."
-      });
+    // Background generation returns quickly; the browser polls for completion.
+    if (!data?.id) {
+      return jsonResponse(502, {error: "OpenAI did not return a report job ID."});
     }
-
-
-    let report;
-
-
-    try {
-
-      report =
-        JSON.parse(outputText);
-
-    } catch {
-
-      return jsonResponse(502, {
-        error:
-          "The report data could not be parsed."
-      });
-    }
-
-
-    report =
-      cleanReport(report);
-
-
-    /*
-      Save the completed AI report as a draft
-      for internal review before client delivery.
-    */
-    const savedDraft =
-      await saveDraftToSupabase({
-        client,
-        diagnostic,
-        report
-      });
-
-
-    return jsonResponse(200, {
-
-      report,
-
-      report_id:
-        savedDraft.id,
-
-      scheduled_send_at:
-        savedDraft.scheduled_send_at
-    });
+    return jsonResponse(202, {status: "processing", response_id: data.id});
 
 
   } catch (err) {
