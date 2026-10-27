@@ -246,6 +246,163 @@ const REPORT_MIN_WORDS = {
   focus_next_intro: 20, now: 18, next: 18, nurture: 18
 };
 
+const REPORT_SCHEMA = {
+                    type:
+                      "object",
+
+                    additionalProperties:
+                      false,
+
+                    properties: {
+
+                      score_meaning: {
+                        type: "string"
+                      },
+
+                      stands_out: {
+                        type: "string"
+                      },
+
+                      strategic_headline: {
+                        type: "string"
+                      },
+
+                      strategic_commentary: {
+                        type: "string"
+                      },
+
+                      consumer_headline: {
+                        type: "string"
+                      },
+
+                      consumer_commentary: {
+                        type: "string"
+                      },
+
+                      market_headline: {
+                        type: "string"
+                      },
+
+                      market_commentary: {
+                        type: "string"
+                      },
+
+                      growth_headline: {
+                        type: "string"
+                      },
+
+                      growth_commentary: {
+                        type: "string"
+                      },
+
+                      commercial_headline: {
+                        type: "string"
+                      },
+
+                      commercial_commentary: {
+                        type: "string"
+                      },
+
+                      focus_next_intro: {
+                        type: "string"
+                      },
+
+                      now: {
+                        type: "string"
+                      },
+
+                      next: {
+                        type: "string"
+                      },
+
+                      nurture: {
+                        type: "string"
+                      }
+
+                    },
+
+                    required: [
+                      "score_meaning",
+                      "stands_out",
+                      "strategic_headline",
+                      "strategic_commentary",
+                      "consumer_headline",
+                      "consumer_commentary",
+                      "market_headline",
+                      "market_commentary",
+                      "growth_headline",
+                      "growth_commentary",
+                      "commercial_headline",
+                      "commercial_commentary",
+                      "focus_next_intro",
+                      "now",
+                      "next",
+                      "nurture"
+                    ]
+                  };
+
+// A tiny, one-time repair call generates only rejected fields. The original
+// OpenAI response is retained and the valid fields are merged unchanged.
+const MAX_REPAIR_FIELDS = 5;
+
+function repairSourceExcerpt(value) {
+  const text = String(value ?? "");
+  // Never feed a whole repeated runaway back into the correction request.
+  return text.replace(/(?:\s*\n){3,}/g, "\n\n").slice(0, 520);
+}
+
+async function retrieveOpenAIResponse(apiKey, id) {
+  const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(id)}`, {
+    headers: { Authorization: `Bearer ${apiKey}` }
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data) {
+    throw new Error(data?.error?.message || `Unable to retrieve original report (${response.status}).`);
+  }
+  return data;
+}
+
+async function beginFieldRepair({ originalResponse, report, errors, client, diagnostic }) {
+  const apiKey = Netlify.env.get("OPENAI_API_KEY");
+  const keys = [...new Set(errors.map(error => error.split(":")[0]))].filter(key => key in REPORT_LIMITS);
+  if (!keys.length || keys.length > MAX_REPAIR_FIELDS) {
+    return jsonResponse(422, { error: "Several report sections failed quality checks.", details: errors });
+  }
+
+  const repairSchema = {
+    type: "object", additionalProperties: false,
+    properties: Object.fromEntries(keys.map(key => [key, {type:"string"}])),
+    required: keys
+  };
+  const keep = Object.fromEntries(Object.entries(report)
+    .filter(([key]) => !keys.includes(key))
+    .map(([key, value]) => [key, repairSourceExcerpt(value)]));
+  const broken = Object.fromEntries(keys.map(key => [key, repairSourceExcerpt(report[key])]));
+  const guide = keys.map(key => `${key}: ${REPORT_MIN_WORDS[key]}–${REPORT_LIMITS[key]} words`).join("; ");
+  const instruction = `You are repairing only invalid sections in an otherwise approved Brand Pulse report.
+Follow the original report's natural, plain-spoken, commercially sharp, warm UK founder-to-founder voice; retain a subtle knowing smile where it genuinely fits. Avoid jargon, invented evidence and repetition.
+Do not rewrite the valid sections or introduce new unsupported claims. Return ONLY the corrected named fields as structured JSON.
+Company: ${client.company}.
+Diagnostic scores and 20 answers: ${JSON.stringify(diagnostic)}
+These fields failed validation: ${JSON.stringify(errors)}.
+Word counts required: ${guide}.
+Good surrounding report for voice and logical continuity: ${JSON.stringify(keep)}
+Original rejected excerpts (may be corrupt): ${JSON.stringify(broken)}
+Each corrected field must be meaningful, complete, specific, non-repetitive, with no dates standing alone, links, citations or placeholders.`;
+
+  const job = await openaiRequest(apiKey, {
+    model: "gpt-4.1",
+    background: true,
+    max_output_tokens: 1400,
+    text: {format: {type: "json_schema", name: "brand_pulse_field_repair", strict: true, schema: repairSchema}},
+    metadata: {bp_repair: "1", bp_original: originalResponse.id, bp_fields: keys.join(",")},
+    input: instruction
+  });
+  if (!job.id) return jsonResponse(502, {error:"Report repair did not return a job ID."});
+  console.info("Brand Pulse repair started", {original_id: originalResponse.id, repair_id: job.id, fields: keys});
+  return jsonResponse(202, {status:"processing",stage:"writing",response_id:job.id});
+}
+
 function validateReport(report) {
   const errors = [];
   if (!report || typeof report !== "object" || Array.isArray(report)) {
@@ -264,6 +421,10 @@ function validateReport(report) {
     }
     if (wordCount > maxWords) {
       errors.push(`${key}: exceeds ${maxWords}-word limit`);
+    }
+    const chunks = text.split(/\n\s*\n/u).map(t => t.trim()).filter(Boolean);
+    if (chunks.length >= 3 && new Set(chunks).size < chunks.length - 1) {
+      errors.push(`${key}: repeated blocks`);
     }
     if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}(?:[T\s].*)?$/u.test(text) ||
         /^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/u.test(text)) {
@@ -334,14 +495,37 @@ async function finishReport(data, client, diagnostic) {
     }
 
 
-    report =
-      cleanReport(report);
+    report = cleanReport(report);
+
+    // On a completed repair, retrieve the original output and merge ONLY the
+    // invalid fields. Every previously valid field stays byte-for-byte intact.
+    const repairMeta = data?.metadata;
+    if (repairMeta?.bp_repair === "1") {
+      const originalId = String(repairMeta.bp_original || "");
+      const repairKeys = String(repairMeta.bp_fields || "").split(",").filter(Boolean);
+      if (!/^resp_[a-zA-Z0-9_-]{6,150}$/.test(originalId) ||
+          !repairKeys.length || repairKeys.some(key => !(key in REPORT_LIMITS))) {
+        return jsonResponse(502,{error:"Invalid report-repair metadata."});
+      }
+      const original = await retrieveOpenAIResponse(Netlify.env.get("OPENAI_API_KEY"), originalId);
+      let originalReport;
+      try { originalReport = cleanReport(JSON.parse(responseOutputText(original))); }
+      catch { return jsonResponse(502,{error:"Unable to retrieve the original report for repair."}); }
+      for (const key of repairKeys) {
+        if (typeof report[key] !== "string") return jsonResponse(502,{error:`Repair omitted ${key}.`});
+        originalReport[key] = report[key];
+      }
+      report = originalReport;
+    }
 
     const validationErrors = validateReport(report);
     if (validationErrors.length) {
       console.error("Brand Pulse report validation failed", validationErrors);
+      if (repairMeta?.bp_repair !== "1") {
+        return await beginFieldRepair({originalResponse:data,report,errors:validationErrors,client,diagnostic});
+      }
       return jsonResponse(422, {
-        error: "The generated report did not pass quality checks. No report has been saved.",
+        error: "A corrected report section did not pass quality checks. No report has been saved.",
         details: validationErrors
       });
     }
@@ -1016,100 +1200,7 @@ ${researchBriefing}
                   strict:
                     true,
 
-                  schema: {
-                    type:
-                      "object",
-
-                    additionalProperties:
-                      false,
-
-                    properties: {
-
-                      score_meaning: {
-                        type: "string"
-                      },
-
-                      stands_out: {
-                        type: "string"
-                      },
-
-                      strategic_headline: {
-                        type: "string"
-                      },
-
-                      strategic_commentary: {
-                        type: "string"
-                      },
-
-                      consumer_headline: {
-                        type: "string"
-                      },
-
-                      consumer_commentary: {
-                        type: "string"
-                      },
-
-                      market_headline: {
-                        type: "string"
-                      },
-
-                      market_commentary: {
-                        type: "string"
-                      },
-
-                      growth_headline: {
-                        type: "string"
-                      },
-
-                      growth_commentary: {
-                        type: "string"
-                      },
-
-                      commercial_headline: {
-                        type: "string"
-                      },
-
-                      commercial_commentary: {
-                        type: "string"
-                      },
-
-                      focus_next_intro: {
-                        type: "string"
-                      },
-
-                      now: {
-                        type: "string"
-                      },
-
-                      next: {
-                        type: "string"
-                      },
-
-                      nurture: {
-                        type: "string"
-                      }
-
-                    },
-
-                    required: [
-                      "score_meaning",
-                      "stands_out",
-                      "strategic_headline",
-                      "strategic_commentary",
-                      "consumer_headline",
-                      "consumer_commentary",
-                      "market_headline",
-                      "market_commentary",
-                      "growth_headline",
-                      "growth_commentary",
-                      "commercial_headline",
-                      "commercial_commentary",
-                      "focus_next_intro",
-                      "now",
-                      "next",
-                      "nurture"
-                    ]
-                  }
+                  schema: REPORT_SCHEMA
                 }
               },
 
