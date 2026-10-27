@@ -281,6 +281,14 @@ function validateReport(report) {
 
 // Process a finished background response using the existing report parsing and draft save.
 async function finishReport(data, client, diagnostic) {
+    console.info("Brand Pulse writing completed", {
+      response_id: data?.id || null,
+      model: data?.model || null,
+      input_tokens: data?.usage?.input_tokens ?? null,
+      output_tokens: data?.usage?.output_tokens ?? null,
+      reasoning_tokens: data?.usage?.output_tokens_details?.reasoning_tokens ?? null,
+      status: data?.status || null
+    });
     const outputText =
       data.output_text ||
       (data.output || [])
@@ -468,8 +476,19 @@ RESEARCH_UNAVAILABLE and do not invent a profile. Do not write a diagnostic repo
       }
       if (data.status === "failed" || data.status === "cancelled" || data.status === "incomplete") {
         const reason = data?.error?.message || data?.incomplete_details?.reason || data.status;
+        const outputLimitHit = body.stage !== "research" && data.status === "incomplete" && reason === "max_output_tokens";
+        console.error("Brand Pulse background job did not complete", {
+          stage: body.stage === "research" ? "research" : "writing",
+          response_id: id,
+          status: data.status,
+          reason,
+          input_tokens: data?.usage?.input_tokens ?? null,
+          output_tokens: data?.usage?.output_tokens ?? null
+        });
         return jsonResponse(502, {
-          error: `OpenAI ${body.stage === "research" ? "research" : "writing"} ended with status ${data.status}: ${reason}. No report has been saved.`
+          error: outputLimitHit
+            ? "Report writing exceeded its output limit and was stopped safely. No report has been saved."
+            : `OpenAI ${body.stage === "research" ? "research" : "writing"} ended with status ${data.status}: ${reason}. No report has been saved.`
         });
       }
       if (data.status !== "completed") {
@@ -982,9 +1001,9 @@ ${researchBriefing}
           body:
             JSON.stringify({
 
-              model:
-                Netlify.env.get("OPENAI_MODEL") ||
-                "gpt-5.1",
+              // Writing uses a non-reasoning, structured-output model to avoid
+              // the observed GPT-5.1 128k-output runaway. Research model unchanged.
+              model: "gpt-4.1",
 
               text: {
                 format: {
@@ -1095,6 +1114,10 @@ ${researchBriefing}
               },
 
               background: true,
+
+              // Hard stop against runaway generation (previously hit 128,000 output tokens).
+              // This is an API limit, not a change to the approved report word limits.
+              max_output_tokens: 6000,
 
               input:
                 prompt
