@@ -30,8 +30,8 @@ async function sendClaimed(root,key,resend,row,mode){
   if(!validReport(r)) throw Error('Incomplete report; manual review required.');
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(row.client_email||''))) throw Error('Invalid recipient email.');
   if(mode==='test'&&!isTest(row)) throw Error('Test mode permits marked internal reports only.');
-  const {html,attachment}=render(row);
-  const payload={from:FROM,to:[row.client_email.trim()],reply_to:'paul@thec-lab.co.uk',subject:`${mode==='test'?'[TEST] ':''}Your Brand Pulse report — ${String(row.company_name).slice(0,80)}`,html,attachments:[{filename:'brand-pulse-score.png',content:attachment,content_id:'brand-pulse-donut'}]};
+  const {html,attachment,logoAttachment}=render(row);
+  const payload={from:FROM,to:[row.client_email.trim()],reply_to:'paul@thec-lab.co.uk',subject:`${mode==='test'?'[TEST] ':''}Your Brand Pulse report — ${String(row.company_name).slice(0,80)}`,html,attachments:[{filename:'brand-pulse-score.png',content:attachment,content_id:'brand-pulse-donut'},{filename:'creative-lab-logo.png',content:logoAttachment,content_id:'brand-pulse-logo'}]};
   const resp=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${resend}`,'Content-Type':'application/json','Idempotency-Key':`brand-pulse-${mode}-${row.id}`},body:JSON.stringify(payload)});
   const data=await resp.json().catch(()=>null);
   if(!resp.ok||!data?.id)throw Error(`Resend ${resp.status}: ${data?.message||'no email id'}`);
