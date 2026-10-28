@@ -9,8 +9,9 @@ const clean = v => esc(v).replace(/\r?\n/g,'<br>');
 const first = name => String(name || '').trim().split(/\s+/)[0] || 'there';
 const num = v => Math.round(Math.min(100,Math.max(0,Number(v)||0)));
 function p(s){return `<p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.55;margin:0 0 16px;color:${DARK};">${s}</p>`}
-function head(s){return `<h3 style="font-family:Arial,Helvetica,sans-serif;font-size:12px;letter-spacing:.025em;text-transform:uppercase;margin:25px 0 10px;color:${DARK};">${s}</h3>`}
-function rule(){return '<div style="height:1px;border-top:1px solid #aaa;margin:25px 0;"></div>'}
+function sectionP(s){return `<p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.55;margin:0;color:${DARK};">${s}</p>`}
+function head(s){return `<h3 style="font-family:Arial,Helvetica,sans-serif;font-size:14px;letter-spacing:.025em;text-transform:uppercase;margin:0 0 10px;color:${DARK};">${s}</h3>`}
+function rule(){return '<div style="height:1px;border-top:1px solid #aaa;margin:24px 0;"></div>'}
 const CATEGORY_COLOURS = Object.freeze({
   'Strategic Fitness':'#E5D8C7',
   'Consumer Intelligence':'#CCCEC7',
@@ -39,7 +40,7 @@ function donutPng(score){
   const idx=row+1+x*4; rows[idx]=col[0];rows[idx+1]=col[1];rows[idx+2]=col[2];rows[idx+3]=alpha;
  }}
  // Central number, fine divider, denominator (approved score hierarchy).
- drawDigits(rows,w,String(v),w/2,87,1,[255,255,255]);
+ drawDigits(rows,w,String(v),w/2,87,1,[255,255,255],true);
  for(let x=99;x<195;x++) writePixel(rows,w,x,173,[70,70,70]);
  drawDigits(rows,w,'100',w/2,185,0.55,[52,52,52]);
  const pngsig=Buffer.from([137,80,78,71,13,10,26,10]),ihdr=Buffer.alloc(13);ihdr.writeUInt32BE(w,0);ihdr.writeUInt32BE(h,4);ihdr[8]=8;ihdr[9]=6;
@@ -55,14 +56,14 @@ function writePixel(rows,w,x,y,color,coverage=255){
  rows[i+2]=Math.round(rows[i+2]*(1-blend)+color[2]*blend);
  rows[i+3]=255;
 }
-function drawDigits(rows,w,text,cx,top,scale,color){
+function drawDigits(rows,w,text,cx,top,scale,color,bold=false){
  const glyphW=46,glyphH=65,sp=1,total=text.length*(glyphW+sp)*scale-sp*scale;
  const left=Math.round(cx-total/2);
  for(let n=0;n<text.length;n++) {
   const mask=inflateSync(Buffer.from(DIGIT_MASKS[text[n]],'base64'));
   for(let y=0;y<glyphH;y++) for(let x=0;x<glyphW;x++) {
    const coverage=mask[y*glyphW+x];
-   if(coverage) writePixel(rows,w,Math.round(left+n*(glyphW+sp)*scale+x*scale),Math.round(top+y*scale),color,coverage);
+   if(coverage){ const px=Math.round(left+n*(glyphW+sp)*scale+x*scale),py=Math.round(top+y*scale);writePixel(rows,w,px,py,color,coverage); if(bold)writePixel(rows,w,px+1,py,color,coverage); }
   }
  }
 }
@@ -77,7 +78,7 @@ function categoryPng(score, colour){
   const a=Math.max(0,Math.min(1,159.5-d));
   rows[i]=bg[0];rows[i+1]=bg[1];rows[i+2]=bg[2];rows[i+3]=Math.round(255*a);
  }
- const plot=(text,scale,centreY)=>{
+ const plot=(text,scale,centreY,bold=false)=>{
   const glyphW=46,glyphH=65,spacing=4;
   const total=(text.length*glyphW+(text.length-1)*spacing)*scale;
   const left=(w-total)/2, top=centreY-glyphH*scale/2;
@@ -89,7 +90,8 @@ function categoryPng(score, colour){
     if(u<-.5||u>=glyphW-.5||v<-.5||v>=glyphH-.5)continue;
     const ix=Math.floor(u),iy=Math.floor(v),fx=u-ix,fy=v-iy;
     const sample=(xx,yy)=>xx>=0&&xx<glyphW&&yy>=0&&yy<glyphH?mask[yy*glyphW+xx]:0;
-    const coverage=(sample(ix,iy)*(1-fx)+sample(ix+1,iy)*fx)*(1-fy)+(sample(ix,iy+1)*(1-fx)+sample(ix+1,iy+1)*fx)*fy;
+    const bilinear=(u,v)=>{const i=Math.floor(u),j=Math.floor(v),a=u-i,b=v-j;return (sample(i,j)*(1-a)+sample(i+1,j)*a)*(1-b)+(sample(i,j+1)*(1-a)+sample(i+1,j+1)*a)*b;};
+    const coverage=bold?Math.max(bilinear(u,v),bilinear(u-0.9,v),bilinear(u+0.9,v)):bilinear(u,v);
     if(coverage>0&&x>=0&&y>=0&&x<w&&y<h){
      const at=y*(w*4+1)+1+x*4,alpha=coverage/255;
      for(let c=0;c<3;c++)rows[at+c]=Math.round(dark[c]*alpha+rows[at+c]*(1-alpha));
@@ -97,7 +99,7 @@ function categoryPng(score, colour){
    }
   }
  };
- plot(String(num(score)),1.65,127);
+ plot(String(num(score)),1.65,127,true);
  for(let y=192;y<195;y++)for(let x=102;x<218;x++){
   const at=y*(w*4+1)+1+x*4;
   for(let c=0;c<3;c++)rows[at+c]=dark[c];
@@ -111,9 +113,9 @@ function render(row){
  const r=typeof row.report_json==='string' ? JSON.parse(row.report_json) : (row.report_json||{}),score=num(row.overall_score),label=esc(row.company_name);
  const scorePanel=`<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${SAGE};border-radius:13px;margin:21px 0 27px;"><tr><td valign="middle" style="padding:20px;font-family:Arial,sans-serif;color:#222;"><div style="font-size:26px;line-height:1.1;font-weight:900;">Your Brand Pulse</div><div style="font-size:25px;line-height:1.1;font-weight:400;">Performance Score</div></td><td width="147" valign="middle" style="padding:12px 16px 12px 0;"><table role="presentation" width="147" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:0;"><img src="cid:brand-pulse-donut" width="147" height="147" alt="Brand Pulse performance ${score} out of 100" style="display:block;max-width:147px;width:147px;height:147px;"></td></tr></table></td></tr></table>`;
  const intro=[`Hi ${esc(first(row.client_name))},`,'Thank you for completing Brand Pulse: our Performance Diagnostic.',"We’ve reviewed your responses and looked at your brand to create the personalised report below. It highlights what’s working, where growth may be getting constrained and where we think your attention should go next.","The report is deliberately high level. The real value comes from looking at the findings in context and deciding what to prioritise. That’s where our <strong>Now, Next and Nurture</strong> growth pathway comes in.","But first, here’s what your diagnostic is telling us."].map(p).join('');
- const copy=intro+scorePanel+head('What Your Score Means')+p(clean(r.score_meaning))+rule()+head('What Stands Out')+p(clean(r.stands_out))+rule()+head('The Five Areas')+
+ const copy=intro+scorePanel+head('What Your Score Means')+sectionP(clean(r.score_meaning))+rule()+head('What Stands Out')+sectionP(clean(r.stands_out))+rule()+head('The Five Areas')+
  area('Strategic Fitness',row.strategic_score,r.strategic_headline,r.strategic_commentary)+area('Consumer Intelligence',row.consumer_score,r.consumer_headline,r.consumer_commentary)+area('Market Influence',row.market_score,r.market_headline,r.market_commentary)+area('Growth Engine',row.growth_score,r.growth_headline,r.growth_commentary)+area('Commercial Endurance',row.commercial_score,r.commercial_headline,r.commercial_commentary)+
- head('Where To Focus Next')+p(clean(r.focus_next_intro))+['now','next','nurture'].map(k=>`<div style="padding:15px 0;border-top:1px solid #aaa;">${head(k)}${p(clean(r[k]))}</div>`).join('')+rule()+
+ `<div style="height:24px;line-height:24px;"></div>`+head('Where To Focus Next')+sectionP(clean(r.focus_next_intro))+['now','next','nurture'].map(k=>`<div style="padding:24px 0;border-top:1px solid #aaa;">${head(k)}${sectionP(clean(r[k]))}</div>`).join('')+rule()+
  p('We hope this report has given you a clearer picture of where your brand stands today and where the opportunities for growth might lie.')+
  p("Once you've had a chance to look through it, we'd love to spend 30 minutes talking you through the findings and exploring what you'd prioritise to move your business forward.")+
  p('Just click below to find a time that works for you.')+
