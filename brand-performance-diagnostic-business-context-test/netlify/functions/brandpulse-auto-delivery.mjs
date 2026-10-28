@@ -35,7 +35,7 @@ async function run() {
   }
   if (!root || !key || !resend) throw Error('Delivery configuration missing.');
   const cutoff = new Date().toISOString();
-  const query = `?select=*&delivery_enabled=eq.true&status=in.(draft,approved)&scheduled_send_at=lte.${encodeURIComponent(cutoff)}&order=scheduled_send_at.asc&limit=5`; 
+  const query = `?select=*&delivery_enabled=eq.true&status=in.(draft,approved)&scheduled_send_at=lte.${encodeURIComponent(cutoff)}&order=scheduled_send_at.asc&limit=5`;
   const due = await jsonOrError(await fetch(api(root,query),{headers:headers(key)}));
   let sent=0, rejected=0;
   for (const report of due || []) {
@@ -58,9 +58,9 @@ async function run() {
       const {html, attachment}=render(row);
       const payload = {
         from:FROM,to:[row.client_email.trim()],
-        bcc:['michael@thec-lab.co.uk','paul@thec-lab.co.uk'],
+        // No BCC during testing: Michael and Paul must not receive report copies.
         reply_to:'paul@thec-lab.co.uk',
-        subject:`${mode === 'test' ? '[TEST] ' : ''}Your Brand Pulse report — ${String(row.company_name).slice(0,80)}`, 
+        subject:`${mode === 'test' ? '[TEST] ' : ''}Your Brand Pulse report — ${String(row.company_name).slice(0,80)}`,
         html,attachments:[{filename:'brand-pulse-score.png',content:attachment,content_id:'brand-pulse-donut'}]
       };
       const result=await fetch('https://api.resend.com/emails',{
