@@ -15,14 +15,16 @@ const CATEGORY_COLOURS = Object.freeze({
   'Strategic Fitness':'#E5D8C7',
   'Consumer Intelligence':'#CCCEC7',
   'Market Influence':'#C6B8BC',
-  'Growth Engine':'#F5F0E8',
+  'Growth Engine':'#ECE5D9',
   'Commercial Endurance':'#DCDDD8'
 });
 function area(label,score,headline,body){
  const categoryIndex=Object.keys(CATEGORY_COLOURS).indexOf(label);
  if(categoryIndex<0)throw Error('Unknown diagnostic area: '+label);
- const circle=`<img src="cid:brand-pulse-category-${categoryIndex}" width="60" height="60" alt="${num(score)} out of 100" style="display:block;width:60px;height:60px;border:0;">`;
- return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;table-layout:fixed;border-collapse:collapse;border-bottom:1px solid #aaa;margin:0;"><tr><td valign="middle" width="74" style="width:74px;padding:15px 10px 15px 0;">${circle}</td><td valign="middle" width="112" style="width:112px;padding:15px 8px 15px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.35;font-weight:bold;color:#343434;overflow-wrap:break-word;">${esc(label)}</td><td valign="middle" style="padding:15px 0;font-family:Arial,Helvetica,sans-serif;color:#343434;font-size:12px;line-height:1.45;overflow-wrap:break-word;">${clean(body)}</td></tr></table>`;
+ const circle=`<img src="cid:brand-pulse-category-${categoryIndex}" width="62" height="62" alt="${num(score)} out of 100" style="display:block;width:62px;height:62px;border:0;outline:none;text-decoration:none;">`;
+ // Approved compact layout: circle on left; category name, heading and commentary in one cell on right.
+ // Explicit widths and cell padding provide predictable sizing in Apple Mail and Outlook.
+ return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;border-bottom:1px solid #aaa;"><tr><td width="78" valign="top" style="width:78px;padding:19px 8px 18px 0;vertical-align:top;">${circle}</td><td valign="top" style="padding:18px 0 18px 0;vertical-align:top;font-family:Arial,Helvetica,sans-serif;color:#343434;"><div style="font-size:13px;font-weight:700;line-height:1.35;margin:0 0 5px 0;">${esc(label.toUpperCase())}</div><div style="font-size:13px;font-weight:700;line-height:1.35;margin:0 0 5px 0;">${clean(headline)}</div><div style="font-size:12px;font-weight:400;line-height:1.5;margin:0;">${clean(body)}</div></td></tr></table>`;
 }
 const hex = h => [1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
 const rgb = (a,b,t)=>a.map((v,i)=>Math.round(v+(b[i]-v)*t));
@@ -67,15 +69,40 @@ function drawDigits(rows,w,text,cx,top,scale,color){
 
 // Rasterised score circles: fixed category colours, no email-client CSS dependency.
 function categoryPng(score, colour){
- const w=160,h=160,rows=Buffer.alloc((w*4+1)*h),bg=hex(colour),dark=hex('#343434');
- for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+ // Large antialiased embedded PNG. All five categories use exactly the same rendering.
+ // 320px output at 62px display avoids pixelated scores in retina email clients.
+ const w=320,h=320,rows=Buffer.alloc((w*4+1)*h),bg=hex(colour),dark=hex('#343434');
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   const i=y*(w*4+1)+1+x*4,d=Math.hypot(x+0.5-w/2,y+0.5-h/2);
-  if(d<=78){rows[i]=bg[0];rows[i+1]=bg[1];rows[i+2]=bg[2];rows[i+3]=255;}
+  const a=Math.max(0,Math.min(1,159.5-d));
+  rows[i]=bg[0];rows[i+1]=bg[1];rows[i+2]=bg[2];rows[i+3]=Math.round(255*a);
  }
- // The score and denominator are part of the same PNG as the circle.
- drawDigits(rows,w,String(num(score)),80,36,0.88,dark);
- for(let x=49;x<111;x++)writePixel(rows,w,x,101,dark);
- drawDigits(rows,w,'100',80,111,0.35,dark);
+ const plot=(text,scale,centreY)=>{
+  const glyphW=46,glyphH=65,spacing=4;
+  const total=(text.length*glyphW+(text.length-1)*spacing)*scale;
+  const left=(w-total)/2, top=centreY-glyphH*scale/2;
+  for(let k=0;k<text.length;k++){
+   const mask=inflateSync(Buffer.from(DIGIT_MASKS[text[k]],'base64'));
+   const x0=left+k*(glyphW+spacing)*scale;
+   for(let y=Math.floor(top)-2;y<Math.ceil(top+glyphH*scale)+2;y++)for(let x=Math.floor(x0)-2;x<Math.ceil(x0+glyphW*scale)+2;x++){
+    const u=(x+0.5-x0)/scale-0.5,v=(y+0.5-top)/scale-0.5;
+    if(u<-.5||u>=glyphW-.5||v<-.5||v>=glyphH-.5)continue;
+    const ix=Math.floor(u),iy=Math.floor(v),fx=u-ix,fy=v-iy;
+    const sample=(xx,yy)=>xx>=0&&xx<glyphW&&yy>=0&&yy<glyphH?mask[yy*glyphW+xx]:0;
+    const coverage=(sample(ix,iy)*(1-fx)+sample(ix+1,iy)*fx)*(1-fy)+(sample(ix,iy+1)*(1-fx)+sample(ix+1,iy+1)*fx)*fy;
+    if(coverage>0&&x>=0&&y>=0&&x<w&&y<h){
+     const at=y*(w*4+1)+1+x*4,alpha=coverage/255;
+     for(let c=0;c<3;c++)rows[at+c]=Math.round(dark[c]*alpha+rows[at+c]*(1-alpha));
+    }
+   }
+  }
+ };
+ plot(String(num(score)),1.65,127);
+ for(let y=192;y<195;y++)for(let x=102;x<218;x++){
+  const at=y*(w*4+1)+1+x*4;
+  for(let c=0;c<3;c++)rows[at+c]=dark[c];
+ }
+ plot('100',0.85,230);
  const sig=Buffer.from([137,80,78,71,13,10,26,10]),ihdr=Buffer.alloc(13);
  ihdr.writeUInt32BE(w,0);ihdr.writeUInt32BE(h,4);ihdr[8]=8;ihdr[9]=6;
  return Buffer.concat([sig,chunk('IHDR',ihdr),chunk('IDAT',deflateSync(rows)),chunk('IEND',Buffer.alloc(0))]).toString('base64');
@@ -93,7 +120,7 @@ function render(row){
  `<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:24px auto;"><tr><td align="center" bgcolor="${PLUM}" style="background:${PLUM};border-radius:4px;"><a href="https://calendly.com/paultcl/30min" style="display:block;padding:12px 28px;color:#fff;font:bold 12px Arial,sans-serif;text-decoration:none;">Book a Call</a></td></tr></table>`+
  p('Look forward to speaking soon.')+p('Kind regards,<br><strong>The Creative Lab</strong>')+
  `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#D6D9D1;border-radius:14px;margin-top:24px;"><tr><td width="50%" align="center" valign="top" style="padding:24px 9px;font:11px/1.6 Arial,sans-serif;border-right:1px solid #8f918c;"><strong>Michael Miley, CEO</strong><br><br><a href="mailto:michael@thec-lab.co.uk" style="color:#343434;">michael@thec-lab.co.uk</a><br>+44 (0)7860 441128</td><td width="50%" align="center" valign="top" style="padding:24px 9px;font:11px/1.6 Arial,sans-serif;"><strong>Paul Cope, MD</strong><br><br><a href="mailto:paul@thec-lab.co.uk" style="color:#343434;">paul@thec-lab.co.uk</a><br>+44 (0)7900 900704</td></tr></table>`;
- const html=`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#ffffff;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:20px 10px;"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:${CREAM};"><tr><td style="padding:30px;"><table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;"><tr><td align="center"><img src="cid:brand-pulse-logo" width="160" height="57" alt="The Creative Lab" style="display:block;width:160px;height:57px;border:0;"></td></tr></table><div style="font:bold 11px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;margin-bottom:24px;">${label}</div>${copy}</td></tr></table></td></tr></table></body></html>`;
+ const html=`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#ffffff;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:20px 10px;"><table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:#ffffff;"><tr><td align="center" bgcolor="#ffffff" style="background:#ffffff;padding:24px 20px 22px 20px;"><img src="cid:brand-pulse-logo" width="160" height="57" alt="The Creative Lab" style="display:block;width:160px;height:57px;border:0;"></td></tr><tr><td bgcolor="${CREAM}" style="background:${CREAM};padding:30px;"><div style="font:bold 11px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;margin-bottom:24px;">${label}</div>${copy}</td></tr></table></td></tr></table></body></html>`;
  return {html,attachment:donutPng(score),logoAttachment:LOGO_PNG,categoryAttachments:Object.entries(CATEGORY_COLOURS).map(([name,colour],i)=>({filename:`brand-pulse-area-${i}.png`,content:categoryPng(row[({"Strategic Fitness":"strategic_score","Consumer Intelligence":"consumer_score","Market Influence":"market_score","Growth Engine":"growth_score","Commercial Endurance":"commercial_score"})[name]],colour),content_id:`brand-pulse-category-${i}`}))};
 }
 
