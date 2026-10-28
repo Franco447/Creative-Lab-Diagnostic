@@ -55,13 +55,13 @@ async function run() {
     try {
       // Guard again immediately before contacting Resend.
       if (mode === 'test' && !testRow(row)) throw Error('Internal-only test guard refused recipient.');
-      const {html, attachment, logoAttachment}=render(row);
+      const {html, attachment, logoAttachment,categoryAttachments}=render(row);
       const payload = {
         from:FROM,to:[row.client_email.trim()],
         // No BCC during testing: Michael and Paul must not receive report copies.
         reply_to:'paul@thec-lab.co.uk',
         subject:`${mode === 'test' ? '[TEST] ' : ''}Your Brand Pulse report — ${String(row.company_name).slice(0,80)}`,
-        html,attachments:[{filename:'brand-pulse-score.png',content:attachment,content_id:'brand-pulse-donut'},{filename:'creative-lab-logo.png',content:logoAttachment,content_id:'brand-pulse-logo'}]
+        html,attachments:[{filename:'brand-pulse-score.png',content:attachment,content_id:'brand-pulse-donut'},{filename:'creative-lab-logo.png',content:logoAttachment,content_id:'brand-pulse-logo'},...categoryAttachments]
       };
       const result=await fetch('https://api.resend.com/emails',{
         method:'POST',headers:{Authorization:`Bearer ${resend}`,'Content-Type':'application/json','Idempotency-Key':`brand-pulse-${mode}-${row.id}`},body:JSON.stringify(payload)
