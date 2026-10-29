@@ -343,7 +343,9 @@ const REPORT_SCHEMA = {
 
 // A tiny, one-time repair call generates only rejected fields. The original
 // OpenAI response is retained and the valid fields are merged unchanged.
-const MAX_REPAIR_FIELDS = 5;
+// Editorial checks can affect several independent fields in one report.
+// All affected fields are repaired together; unaffected fields remain unchanged.
+const MAX_REPAIR_FIELDS = Object.keys(REPORT_LIMITS).length;
 
 function repairSourceExcerpt(value) {
   const text = String(value ?? "");
@@ -391,12 +393,14 @@ These fields failed validation: ${JSON.stringify(errors)}.
 Word counts required: ${guide}.
 Good surrounding report for voice and logical continuity: ${JSON.stringify(keep)}
 Original rejected excerpts (may be corrupt): ${JSON.stringify(broken)}
-Each corrected field must be meaningful, complete, specific, non-repetitive, with no dates standing alone, links, citations or placeholders.`;
+Each corrected field must be meaningful, complete, specific, non-repetitive, with no dates standing alone, links, citations or placeholders.
+Correct only the rejected fields. For editorial issues, retain the underlying finding, its uncertainty and the founder-to-founder warmth. Remove em dashes by rewriting whole sentences naturally. Remove stock expressions without adding new claims or jokes.
+Check every returned field again for prohibited punctuation and tired phrases before responding.`;
 
   const job = await openaiRequest(apiKey, {
     model: "gpt-4.1",
     background: true,
-    max_output_tokens: 1400,
+    max_output_tokens: Math.min(5500, Math.max(1400, keys.length * 330 + 650)),
     text: {format: {type: "json_schema", name: "brand_pulse_field_repair", strict: true, schema: repairSchema}},
     metadata: {bp_repair: "1", bp_original: originalResponse.id, bp_fields: keys.join(",")},
     input: instruction
@@ -438,6 +442,18 @@ function validateReport(report) {
     }
     if (/https?:\/\/|www\.|cite|【[^】]*】/iu.test(text)) {
       errors.push(`${key}: contains client-facing link or citation`);
+    }
+    // These are editorial guardrails, not an attempt to judge the strategy.
+    // Never alter client copy mechanically; re-write flagged fields via the
+    // existing limited repair call, then validate the result before saving.
+    if (/[—–]/u.test(text)) {
+      errors.push(`${key}: contains an em or en dash`);
+    }
+    if (/\b(?:move(?:s|d)? the needle|shift(?:s|ed)? the needle|keep(?:ing)? the lights on|engine under the bonnet|fogged-up windows|rear-view mirror|half-baked|growth levers|spiky growth|leaving money on the table)\b/iu.test(text)) {
+      errors.push(`${key}: stock metaphor or formulaic phrase`);
+    }
+    if (/\b(?:every|all)\b[^.!?]{0,90}\b(?:can be traced back to|will inevitably|will always)\b/iu.test(text)) {
+      errors.push(`${key}: sweeping causal assertion requires editorial review`);
     }
   }
   return errors;
