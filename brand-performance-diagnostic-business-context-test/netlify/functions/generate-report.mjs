@@ -381,6 +381,7 @@ async function beginFieldRepair({ originalResponse, report, errors, client, diag
   const guide = keys.map(key => `${key}: ${REPORT_MIN_WORDS[key]}–${REPORT_LIMITS[key]} words`).join("; ");
   const instruction = `You are repairing only invalid sections in an otherwise approved Brand Pulse report.
 Follow the original report's natural, plain-spoken, commercially sharp, warm UK founder-to-founder voice; retain a subtle knowing smile where it genuinely fits. Avoid jargon, invented evidence and repetition.
+Do not use em dashes (—) in any repaired client-facing field. Restructure the sentence naturally using full stops or commas where appropriate; do not substitute mechanical punctuation or change the meaning.
 Do not rewrite the valid sections or introduce new unsupported claims. Return ONLY the corrected named fields as structured JSON.
 Company: ${client.company}.
 Diagnostic scores and 20 answers: ${JSON.stringify(diagnostic)}
@@ -804,6 +805,10 @@ The tone should be:
 - commercially focused, without sounding like a management consultant
 
 Use clear, natural conversational English.
+
+PUNCTUATION AND RHYTHM
+
+Do not use em dashes (—) in any client-facing report field. Rewrite the sentence naturally using a full stop, comma or a clearer sentence structure. Do not mechanically replace em dashes with another punctuation mark or introduce repeated colons, semicolons or forced contrasts. Keep the meaning, nuance and conversational UK voice intact. This rule applies to headlines, commentary and Now / Next / Nurture.
 
 Prefer short, direct sentences and familiar words.
 
