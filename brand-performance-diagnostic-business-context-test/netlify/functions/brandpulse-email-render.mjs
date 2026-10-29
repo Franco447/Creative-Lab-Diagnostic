@@ -41,8 +41,8 @@ function donutPng(score){
  }}
  // Central number, fine divider, denominator (approved score hierarchy).
  drawDigits(rows,w,String(v),w/2,87,1,[255,255,255],true);
- for(let x=99;x<195;x++) writePixel(rows,w,x,164,[70,70,70]);
- drawDigits(rows,w,'100',w/2,169,0.55,[52,52,52]);
+ for(let x=99;x<195;x++) writePixel(rows,w,x,173,[70,70,70]);
+ drawDigits(rows,w,'100',w/2,179,0.55,[52,52,52]);
  const pngsig=Buffer.from([137,80,78,71,13,10,26,10]),ihdr=Buffer.alloc(13);ihdr.writeUInt32BE(w,0);ihdr.writeUInt32BE(h,4);ihdr[8]=8;ihdr[9]=6;
  return Buffer.concat([pngsig,chunk('IHDR',ihdr),chunk('IDAT',deflateSync(rows)),chunk('IEND',Buffer.alloc(0))]).toString('base64');
 }
@@ -63,7 +63,7 @@ function drawDigits(rows,w,text,cx,top,scale,color,bold=false){
  for(let n=0;n<text.length;n++) {
   const mask=inflateSync(Buffer.from((bold?DIGIT_MASKS_BOLD:DIGIT_MASKS)[text[n]],'base64'));
   for(let y=0;y<glyphH;y++) for(let x=0;x<glyphW;x++) {
-   const coverage=bold ? Math.max(mask[y*glyphW+x],x>0?mask[y*glyphW+x-1]:0,x<glyphW-1?Math.round(mask[y*glyphW+x+1]*0.85):0) : mask[y*glyphW+x];
+   const coverage=bold ? Math.max(mask[y*glyphW+x],x>0?Math.round(mask[y*glyphW+x-1]*0.72):0) : mask[y*glyphW+x];
    if(coverage){ const px=Math.round(left+n*(glyphW+sp)*scale+x*scale),py=Math.round(top+y*scale);writePixel(rows,w,px,py,color,coverage); }
   }
  }
