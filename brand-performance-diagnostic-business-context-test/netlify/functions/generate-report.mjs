@@ -219,10 +219,38 @@ async function saveDraftToSupabase({
   }
 
 
+  // Verify the database actually kept delivery enabled. If an INSERT-side
+  // database rule defaulted it to false, try one explicit update and verify it.
+  // Do not touch scheduled_send_at: the UK delivery schedule belongs to the DB.
+  let persisted = saved;
+  if (persisted.delivery_enabled !== true) {
+    const fixResponse = await fetch(
+      `${supabaseUrl}/rest/v1/diagnostic_reports?id=eq.${encodeURIComponent(saved.id)}&select=id,delivery_enabled,scheduled_send_at`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": supabaseSecret,
+          "Authorization": `Bearer ${supabaseSecret}`,
+          "Prefer": "return=representation"
+        },
+        body: JSON.stringify({ delivery_enabled: true })
+      }
+    );
+    const fixRows = await fixResponse.json().catch(() => null);
+    if (!fixResponse.ok || !Array.isArray(fixRows) || fixRows.length !== 1) {
+      throw new Error(`Report saved, but enabling automatic delivery failed (HTTP ${fixResponse.status}). Check the saved report in Supabase.`);
+    }
+    persisted = fixRows[0];
+  }
+  if (persisted.delivery_enabled !== true) {
+    throw new Error("Report saved, but the database kept automatic delivery disabled. Check Supabase database rules.");
+  }
+
   return {
     id: saved.id,
     scheduled_send_at:
-      saved.scheduled_send_at ||
+      persisted.scheduled_send_at ||
       scheduledSendAt
   };
 }
