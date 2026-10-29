@@ -382,6 +382,8 @@ async function beginFieldRepair({ originalResponse, report, errors, client, diag
   const instruction = `You are repairing only invalid sections in an otherwise approved Brand Pulse report.
 Follow the original report's natural, plain-spoken, commercially sharp, warm UK founder-to-founder voice; retain a subtle knowing smile where it genuinely fits. Avoid jargon, invented evidence and repetition.
 Do not use em dashes (—) in any repaired client-facing field. Restructure the sentence naturally using full stops or commas where appropriate; do not substitute mechanical punctuation or change the meaning.
+Keep the distinction between respondents' confidence and proven commercial performance. Avoid theatrical metaphors, stock punchlines and sweeping judgements. Write with measured, specific confidence.
+Before returning, check each repaired field for em dashes and rewrite any sentence containing one without changing its meaning.
 Do not rewrite the valid sections or introduce new unsupported claims. Return ONLY the corrected named fields as structured JSON.
 Company: ${client.company}.
 Diagnostic scores and 20 answers: ${JSON.stringify(diagnostic)}
@@ -847,6 +849,10 @@ Prefer direct observations such as:
 - "The opportunity is..."
 - "The tension is between..."
 
+Do not turn a respondent's low confidence into a proven claim about customer behaviour, team alignment, sales performance or market outcomes. Where there is uncertainty, frame the finding as a question or an area to investigate, not an established failure.
+
+Avoid forced wit, colourful labels and familiar metaphors such as red flags, stalled engines, shouting brands or shelf-filler comparisons. A genuinely revealing observation is more persuasive than a punchline. Keep natural warmth when it earns its place.
+
 Do not force website facts into every paragraph.
 
 Use them only where they sharpen the insight.
@@ -900,7 +906,7 @@ Low scores: be direct, respectful and constructive; the personality can live in 
 
 FINAL EDIT, SILENTLY
 
-Read the finished report aloud in your head as if Michael were talking to a founder. Does it sound warm, slightly cheeky, occasionally playful, natural, sharp and worth listening to? Has the copy developed a recognisable personality throughout, rather than a stray clever line? Is every claim supported, each section concise, and the advice proportionate? Fix any flat, bureaucratic, over-clever, repetitive or unsupported line before returning the JSON.
+Read the finished report aloud in your head as if Michael were talking to a founder. Does it sound warm, slightly cheeky, occasionally playful, natural, sharp and worth listening to? Has the copy developed a recognisable personality throughout, rather than a stray clever line? Is every claim supported, each section concise, and the advice proportionate? Check every field for em dashes and rewrite any affected sentence naturally. Replace forced metaphors or overconfident inferences with clear, evidence-led observations. Fix any flat, bureaucratic, over-clever, repetitive or unsupported line before returning the JSON.
 
 
 COMMERCIAL IMPLICATIONS
