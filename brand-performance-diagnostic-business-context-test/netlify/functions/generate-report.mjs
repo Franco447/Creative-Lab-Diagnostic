@@ -159,6 +159,9 @@ async function saveDraftToSupabase({
     status:
       "draft",
 
+    delivery_enabled:
+      true,
+
     scheduled_send_at:
       scheduledSendAt
   };
