@@ -41,8 +41,8 @@ function donutPng(score){
  }}
  // Central number, fine divider, denominator (approved score hierarchy).
  drawDigits(rows,w,String(v),w/2,87,1,[255,255,255],true);
- for(let x=99;x<195;x++) writePixel(rows,w,x,173,[70,70,70]);
- drawDigits(rows,w,'100',w/2,178,0.55,[52,52,52]);
+ for(let x=99;x<195;x++) writePixel(rows,w,x,164,[70,70,70]);
+ drawDigits(rows,w,'100',w/2,169,0.55,[52,52,52]);
  const pngsig=Buffer.from([137,80,78,71,13,10,26,10]),ihdr=Buffer.alloc(13);ihdr.writeUInt32BE(w,0);ihdr.writeUInt32BE(h,4);ihdr[8]=8;ihdr[9]=6;
  return Buffer.concat([pngsig,chunk('IHDR',ihdr),chunk('IDAT',deflateSync(rows)),chunk('IEND',Buffer.alloc(0))]).toString('base64');
 }
@@ -63,7 +63,7 @@ function drawDigits(rows,w,text,cx,top,scale,color,bold=false){
  for(let n=0;n<text.length;n++) {
   const mask=inflateSync(Buffer.from((bold?DIGIT_MASKS_BOLD:DIGIT_MASKS)[text[n]],'base64'));
   for(let y=0;y<glyphH;y++) for(let x=0;x<glyphW;x++) {
-   const coverage=bold ? Math.max(mask[y*glyphW+x],x>0?mask[y*glyphW+x-1]:0,x>1?Math.round(mask[y*glyphW+x-2]*0.65):0) : mask[y*glyphW+x];
+   const coverage=bold ? Math.max(mask[y*glyphW+x],x>0?mask[y*glyphW+x-1]:0,x<glyphW-1?Math.round(mask[y*glyphW+x+1]*0.85):0) : mask[y*glyphW+x];
    if(coverage){ const px=Math.round(left+n*(glyphW+sp)*scale+x*scale),py=Math.round(top+y*scale);writePixel(rows,w,px,py,color,coverage); }
   }
  }
@@ -92,7 +92,7 @@ function categoryPng(score, colour){
     const ix=Math.floor(u),iy=Math.floor(v),fx=u-ix,fy=v-iy;
     const sample=(xx,yy)=>xx>=0&&xx<glyphW&&yy>=0&&yy<glyphH?mask[yy*glyphW+xx]:0;
     const bilinear=(u,v)=>{const i=Math.floor(u),j=Math.floor(v),a=u-i,b=v-j;return (sample(i,j)*(1-a)+sample(i+1,j)*a)*(1-b)+(sample(i,j+1)*(1-a)+sample(i+1,j+1)*a)*b;};
-    const coverage=bold ? Math.max(bilinear(u,v),bilinear(u-0.72,v),bilinear(u-1.44,v)*0.65) : bilinear(u,v);
+    const coverage=bold ? Math.max(bilinear(u,v),bilinear(u-0.72,v)*0.72) : bilinear(u,v);
     if(coverage>0&&x>=0&&y>=0&&x<w&&y<h){
      const at=y*(w*4+1)+1+x*4,alpha=coverage/255;
      for(let c=0;c<3;c++)rows[at+c]=Math.round(dark[c]*alpha+rows[at+c]*(1-alpha));
