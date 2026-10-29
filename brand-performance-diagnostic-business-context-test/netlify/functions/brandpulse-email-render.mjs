@@ -41,7 +41,7 @@ function donutPng(score){
  }}
  // Central number, fine divider, denominator (approved score hierarchy).
  drawDigits(rows,w,String(v),w/2,87,1,[255,255,255],true);
- for(let x=99;x<195;x++) writePixel(rows,w,x,173,[70,70,70]);
+ for(let x=99;x<195;x++) writePixel(rows,w,x,162,[70,70,70]);
  drawDigits(rows,w,'100',w/2,170,0.55,[52,52,52]);
  const pngsig=Buffer.from([137,80,78,71,13,10,26,10]),ihdr=Buffer.alloc(13);ihdr.writeUInt32BE(w,0);ihdr.writeUInt32BE(h,4);ihdr[8]=8;ihdr[9]=6;
  return Buffer.concat([pngsig,chunk('IHDR',ihdr),chunk('IDAT',deflateSync(rows)),chunk('IEND',Buffer.alloc(0))]).toString('base64');
