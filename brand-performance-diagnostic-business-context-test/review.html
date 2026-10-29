@@ -164,6 +164,7 @@ button{
   color:#ddd;
 }
 
+.sidebar button.sidebar-link{border:0;background:transparent;text-align:left;width:100%;cursor:pointer}
 .sidebar-link.active{
   background:#353535;
   color:#fff;
@@ -830,9 +831,12 @@ button{
       Internal
     </div>
 
-    <div class="sidebar-link active">
-      Diagnostics
-    </div>
+    <button type="button" class="sidebar-link active" data-folder="overview">Overview</button>
+    <button type="button" class="sidebar-link" data-folder="new">New Submissions</button>
+    <button type="button" class="sidebar-link" data-folder="attention">Needs Attention <span id="attentionCount"></span></button>
+    <button type="button" class="sidebar-link" data-folder="scheduled">Scheduled</button>
+    <button type="button" class="sidebar-link" data-folder="sent">Sent Reports</button>
+    <button type="button" class="sidebar-link" data-folder="all">All Submissions</button>
 
     <div class="sidebar-spacer"></div>
 
@@ -1016,11 +1020,11 @@ from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 
 const SUPABASE_URL =
-  'https://zhhheesxkpynjrohktrg.supabase.co';
+  'https://zkparqensmvqyvzfbqh.supabase.co';
 
 
 const SUPABASE_PUBLISHABLE_KEY =
-  'sb_publishable_mw9ROaaA9D-HFC3R9_TDGg_YFt4BjwG';
+  'sb_publishable_F8Bv1quy9UoWz6dPlY67QA_lhxUttme';
 
 
 const supabase =
@@ -1113,6 +1117,8 @@ const statusMessage =
 
 
 let reports = [];
+let submissions = [];
+let activeFolder = "overview";
 let selectedReport = null;
 let selectedSection = 'introduction';
 let countdownTimer = null;
@@ -1480,100 +1486,60 @@ async function loadReports(){
   }
 
 
-  reports=
-    data || [];
-
-
+  reports=data||[];
+  try{
+    const {data:{session}}=await supabase.auth.getSession();
+    const resp=await fetch('/.netlify/functions/brandpulse-recovery',{headers:{Authorization:`Bearer ${session.access_token}`}});
+    if(resp.ok)submissions=(await resp.json()).submissions||[];
+  }catch(e){console.error('Cannot load submission queue',e);}
   renderDiagnosticCards();
 }
 
 
 function renderDiagnosticCards(){
-
-  if(!reports.length){
-
-    diagnosticGrid.innerHTML=
-      'No diagnostics yet.';
-
-    return;
-  }
-
-
-  diagnosticGrid.innerHTML=
-    reports
-      .map(
-        r=>`
-
-          <button
-            class="diagnostic-card"
-            data-id="${r.id}"
-          >
-
-            <div class="card-company">
-              ${escapeHtml(
-                r.company_name
-              )}
-            </div>
-
-            <div class="card-meta">
-
-              ${escapeHtml(
-                r.client_name || ''
-              )}
-
-              <br>
-
-              ${r.overall_score}/100
-              ·
-              ${formatDate(
-                r.created_at
-              )}
-
-            </div>
-
-            <span class="status-pill">
-              ${escapeHtml(
-                r.status
-              )}
-            </span>
-
-          </button>
-
-        `
-      )
-      .join('');
-
-
-  document
-    .querySelectorAll(
-      '.diagnostic-card'
-    )
-    .forEach(
-      button=>{
-
-        button.addEventListener(
-          'click',
-          ()=>{
-
-            const report=
-              reports.find(
-                r=>
-                  r.id===
-                  button.dataset.id
-              );
-
-
-            if(report){
-
-              openReport(
-                report
-              );
-            }
-          }
-        );
-      }
-    );
+  const heading=document.querySelector('.list-head h1');
+  const labels={overview:'Overview',new:'New Submissions',attention:'Needs Attention',scheduled:'Scheduled',sent:'Sent Reports',all:'All Submissions'};
+  heading.textContent=labels[activeFolder];
+  const pending=submissions.filter(s=>s.status!=='completed');
+  const attention=pending.filter(s=>s.status==='failed');
+  document.getElementById('attentionCount').textContent=attention.length?`(${attention.length})`:'';
+  document.querySelectorAll('[data-folder]').forEach(b=>b.classList.toggle('active',b.dataset.folder===activeFolder));
+  const filteredReports=reports.filter(r=>
+    activeFolder==='all'||activeFolder==='overview'||
+    (activeFolder==='new'&&r.status==='draft')||
+    (activeFolder==='attention'&&r.status==='delivery_error')||
+    (activeFolder==='scheduled'&&['draft','approved','paused'].includes(r.status))||
+    (activeFolder==='sent'&&r.status==='sent'));
+  const filteredPending=pending.filter(s=>
+    activeFolder==='all'||activeFolder==='overview'||
+    (activeFolder==='new'&&s.status!=='failed')||
+    (activeFolder==='attention'&&s.status==='failed'));
+  const cards=[...filteredPending.map(s=>`<div class="diagnostic-card" data-submission="${s.id}">
+   <div class="card-company">${escapeHtml(s.payload?.client?.company||'Unnamed submission')}</div>
+   <div class="card-meta">${escapeHtml(s.payload?.client?.contact_name||'')}<br>${formatDate(s.created_at)}</div>
+   <span class="status-pill">${s.status==='failed'?'Generation failed':s.status==='queued'?'Queued':s.status==='writing'?'Writing':'Researching'}</span>
+   ${s.status==='failed'?`<p class="card-meta">${escapeHtml(s.last_error||'Needs regeneration')}</p><button class="action-button dark" data-retry="${s.id}">Regenerate Report</button>`:''}
+   </div>`),...filteredReports.map(r=>`<button class="diagnostic-card" data-id="${r.id}">
+   <div class="card-company">${escapeHtml(r.company_name)}</div>
+   <div class="card-meta">${escapeHtml(r.client_name||'')}<br>${escapeHtml(String(r.overall_score))}/100 · ${formatDate(r.created_at)}</div>
+   <span class="status-pill">${escapeHtml(r.status)}</span></button>`)].join('');
+  diagnosticGrid.innerHTML=cards||'No submissions in this folder.';
+  diagnosticGrid.querySelectorAll('[data-id]').forEach(button=>button.addEventListener('click',()=>{
+    const report=reports.find(r=>r.id===button.dataset.id);if(report)openReport(report);
+  }));
+  diagnosticGrid.querySelectorAll('[data-retry]').forEach(button=>button.addEventListener('click',async()=>{
+    button.disabled=true;button.textContent='Queuing…';
+    try{
+      const {data:{session}}=await supabase.auth.getSession();
+      const response=await fetch('/.netlify/functions/brandpulse-recovery',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({action:'retry',id:button.dataset.retry})});
+      const result=await response.json();if(!response.ok)throw Error(result.error||'Retry failed');
+      await loadReports();
+    }catch(e){alert(e.message);button.disabled=false;button.textContent='Regenerate Report';}
+  }));
 }
+document.querySelectorAll('[data-folder]').forEach(button=>button.addEventListener('click',()=>{
+  activeFolder=button.dataset.folder;reviewView.classList.add('hidden');listView.classList.remove('hidden');renderDiagnosticCards();
+}));
 
 
 function openReport(report){
@@ -2571,12 +2537,12 @@ checkSession();
     'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
   const supabase = createClient(
-    'https://zhhheesxkpynjrohktrg.supabase.co',
-    'sb_publishable_mw9ROaaA9D-HFC3R9_TDGg_YFt4BjwG',
+    'https://zkparqensmvqyvzfbqh.supabase.co',
+    'sb_publishable_F8Bv1quy9UoWz6dPlY67QA_lhxUttme',
     {
       auth: {
         persistSession: true,
-        storageKey: 'sb-zhhheesxkpynjrohktrg-auth-token'
+        storageKey: 'sb-zkparqensmvqyvzfbqh-auth-token'
       }
     }
   );
