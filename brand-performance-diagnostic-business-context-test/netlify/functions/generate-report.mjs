@@ -180,6 +180,9 @@ async function saveDraftToSupabase({
           "apikey":
             supabaseSecret,
 
+          "Authorization":
+            `Bearer ${supabaseSecret}`,
+
           "Prefer":
             "return=representation"
         },
@@ -196,6 +199,18 @@ async function saveDraftToSupabase({
 
 
   if (!response.ok) {
+
+    // Temporary staging diagnostic: no keys, tokens, client data or payloads.
+    console.error("Brand Pulse Supabase draft save rejected", {
+      http_status: response.status,
+      postgres_code: typeof data?.code === "string" ? data.code.slice(0, 24) : null,
+      key_format: supabaseSecret.startsWith("sb_secret_")
+        ? "supabase_secret"
+        : supabaseSecret.startsWith("eyJ")
+          ? "legacy_jwt"
+          : "other",
+      authorization_sent: true
+    });
 
     const message =
       data?.message ||
