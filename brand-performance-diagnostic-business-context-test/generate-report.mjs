@@ -1,0 +1,1299 @@
+function jsonResponse(status, body) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8"
+    }
+  });
+}
+
+
+function normaliseDomain(rawUrl) {
+  const u = new URL(rawUrl);
+
+  if (!["http:", "https:"].includes(u.protocol)) {
+    throw new Error("Website must use http or https.");
+  }
+
+  return u.hostname.replace(/^www\./i, "");
+}
+
+
+function cleanClientFacingText(value) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  let text = value;
+
+  text = text.replace(
+    /\[([^\]]+)\]\((?:https?:\/\/|www\.)[^)]+\)/gi,
+    "$1"
+  );
+
+  text = text.replace(
+    /cite[^]+/g,
+    ""
+  );
+
+  text = text.replace(
+    /【[^】]+】/g,
+    ""
+  );
+
+  text = text.replace(
+    /(?:https?:\/\/|www\.)[^\s)\]}]+/gi,
+    ""
+  );
+
+  text = text.replace(
+    /\((?:source|sources|citation|citations)\s*:[^)]+\)/gi,
+    ""
+  );
+
+  text = text.replace(
+    /(?:source|sources|citation|citations)\s*:\s*[^\n]+/gi,
+    ""
+  );
+
+  text = text
+    .replace(/[ \t]+([,.;:!?])/g, "$1")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return text;
+}
+
+
+function cleanReport(report) {
+  const cleaned = {};
+
+  for (const [key, value] of Object.entries(report || {})) {
+    cleaned[key] = cleanClientFacingText(value);
+  }
+
+  return cleaned;
+}
+
+
+function threeHoursFromNow() {
+  return new Date(
+    Date.now() + (3 * 60 * 60 * 1000)
+  ).toISOString();
+}
+
+
+async function saveDraftToSupabase({
+  client,
+  diagnostic,
+  report
+}) {
+
+  const supabaseUrl =
+    Netlify.env.get("SUPABASE_URL");
+
+  const supabaseSecret =
+    Netlify.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+
+  if (!supabaseUrl || !supabaseSecret) {
+    throw new Error(
+      "Supabase environment variables are missing."
+    );
+  }
+
+
+  const scheduledSendAt =
+    threeHoursFromNow();
+
+
+  const dimensions =
+    diagnostic.dimensions || {};
+
+
+  const draft = {
+
+    client_name:
+      client.contact_name || null,
+
+    client_position:
+      client.position || null,
+
+    client_email:
+      client.email || null,
+
+    client_mobile:
+      client.mobile || null,
+
+    company_name:
+      client.company,
+
+    website:
+      client.website,
+
+    overall_score:
+      diagnostic.overall_score,
+
+    strategic_score:
+      dimensions["Strategic Fitness"] ?? 0,
+
+    consumer_score:
+      dimensions["Consumer Intelligence"] ?? 0,
+
+    market_score:
+      dimensions["Market Influence"] ?? 0,
+
+    growth_score:
+      dimensions["Growth Engine"] ?? 0,
+
+    commercial_score:
+      dimensions["Commercial Endurance"] ?? 0,
+
+    answers:
+      diagnostic.answers,
+
+    report_json:
+      report,
+
+    status:
+      "draft",
+
+    delivery_enabled:
+      true,
+
+    scheduled_send_at:
+      scheduledSendAt
+  };
+
+
+  const response =
+    await fetch(
+      `${supabaseUrl}/rest/v1/diagnostic_reports`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          "apikey":
+            supabaseSecret,
+
+          "Authorization":
+            `Bearer ${supabaseSecret}`,
+
+          "Prefer":
+            "return=representation"
+        },
+
+        body:
+          JSON.stringify(draft)
+      }
+    );
+
+
+  const data =
+    await response.json()
+      .catch(() => null);
+
+
+  if (!response.ok) {
+
+    const message =
+      data?.message ||
+      data?.error ||
+      `Supabase save failed with status ${response.status}.`;
+
+    throw new Error(message);
+  }
+
+
+  const saved =
+    Array.isArray(data)
+      ? data[0]
+      : data;
+
+
+  if (!saved?.id) {
+    throw new Error(
+      "Supabase did not return a report ID."
+    );
+  }
+
+
+  // Verify the database actually kept delivery enabled. If an INSERT-side
+  // database rule defaulted it to false, try one explicit update and verify it.
+  // Do not touch scheduled_send_at: the UK delivery schedule belongs to the DB.
+  let persisted = saved;
+  if (persisted.delivery_enabled !== true) {
+    const fixResponse = await fetch(
+      `${supabaseUrl}/rest/v1/diagnostic_reports?id=eq.${encodeURIComponent(saved.id)}&select=id,delivery_enabled,scheduled_send_at`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": supabaseSecret,
+          "Authorization": `Bearer ${supabaseSecret}`,
+          "Prefer": "return=representation"
+        },
+        body: JSON.stringify({ delivery_enabled: true })
+      }
+    );
+    const fixRows = await fixResponse.json().catch(() => null);
+    if (!fixResponse.ok || !Array.isArray(fixRows) || fixRows.length !== 1) {
+      throw new Error(`Report saved, but enabling automatic delivery failed (HTTP ${fixResponse.status}). Check the saved report in Supabase.`);
+    }
+    persisted = fixRows[0];
+  }
+  if (persisted.delivery_enabled !== true) {
+    throw new Error("Report saved, but the database kept automatic delivery disabled. Check Supabase database rules.");
+  }
+
+  return {
+    id: saved.id,
+    scheduled_send_at:
+      persisted.scheduled_send_at ||
+      scheduledSendAt
+  };
+}
+
+
+
+
+// Reject structurally valid JSON containing broken or missing client-facing text.
+// This gate does not assess strategic judgement; reviewers still assess the report.
+const REPORT_LIMITS = {
+  score_meaning: 90, stands_out: 85,
+  strategic_headline: 14, consumer_headline: 14, market_headline: 14,
+  growth_headline: 14, commercial_headline: 14,
+  strategic_commentary: 77, consumer_commentary: 77,
+  market_commentary: 77, growth_commentary: 77, commercial_commentary: 77,
+  focus_next_intro: 90, now: 65, next: 65, nurture: 65
+};
+const REPORT_MIN_WORDS = {
+  score_meaning: 20, stands_out: 20,
+  strategic_headline: 2, consumer_headline: 2, market_headline: 2,
+  growth_headline: 2, commercial_headline: 2,
+  strategic_commentary: 24, consumer_commentary: 24,
+  market_commentary: 24, growth_commentary: 24, commercial_commentary: 24,
+  focus_next_intro: 20, now: 18, next: 18, nurture: 18
+};
+
+const REPORT_SCHEMA = {
+                    type:
+                      "object",
+
+                    additionalProperties:
+                      false,
+
+                    properties: {
+
+                      score_meaning: {
+                        type: "string"
+                      },
+
+                      stands_out: {
+                        type: "string"
+                      },
+
+                      strategic_headline: {
+                        type: "string"
+                      },
+
+                      strategic_commentary: {
+                        type: "string"
+                      },
+
+                      consumer_headline: {
+                        type: "string"
+                      },
+
+                      consumer_commentary: {
+                        type: "string"
+                      },
+
+                      market_headline: {
+                        type: "string"
+                      },
+
+                      market_commentary: {
+                        type: "string"
+                      },
+
+                      growth_headline: {
+                        type: "string"
+                      },
+
+                      growth_commentary: {
+                        type: "string"
+                      },
+
+                      commercial_headline: {
+                        type: "string"
+                      },
+
+                      commercial_commentary: {
+                        type: "string"
+                      },
+
+                      focus_next_intro: {
+                        type: "string"
+                      },
+
+                      now: {
+                        type: "string"
+                      },
+
+                      next: {
+                        type: "string"
+                      },
+
+                      nurture: {
+                        type: "string"
+                      }
+
+                    },
+
+                    required: [
+                      "score_meaning",
+                      "stands_out",
+                      "strategic_headline",
+                      "strategic_commentary",
+                      "consumer_headline",
+                      "consumer_commentary",
+                      "market_headline",
+                      "market_commentary",
+                      "growth_headline",
+                      "growth_commentary",
+                      "commercial_headline",
+                      "commercial_commentary",
+                      "focus_next_intro",
+                      "now",
+                      "next",
+                      "nurture"
+                    ]
+                  };
+
+// A tiny, one-time repair call generates only rejected fields. The original
+// OpenAI response is retained and the valid fields are merged unchanged.
+const MAX_REPAIR_FIELDS = 5;
+
+function repairSourceExcerpt(value) {
+  const text = String(value ?? "");
+  // Never feed a whole repeated runaway back into the correction request.
+  return text.replace(/(?:\s*\n){3,}/g, "\n\n").slice(0, 520);
+}
+
+async function retrieveOpenAIResponse(apiKey, id) {
+  const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(id)}`, {
+    headers: { Authorization: `Bearer ${apiKey}` }
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data) {
+    throw new Error(data?.error?.message || `Unable to retrieve original report (${response.status}).`);
+  }
+  return data;
+}
+
+async function beginFieldRepair({ originalResponse, report, errors, client, diagnostic }) {
+  const apiKey = Netlify.env.get("OPENAI_API_KEY");
+  const keys = [...new Set(errors.map(error => error.split(":")[0]))].filter(key => key in REPORT_LIMITS);
+  if (!keys.length || keys.length > MAX_REPAIR_FIELDS) {
+    return jsonResponse(422, { error: "Several report sections failed quality checks.", details: errors });
+  }
+
+  const repairSchema = {
+    type: "object", additionalProperties: false,
+    properties: Object.fromEntries(keys.map(key => [key, {type:"string"}])),
+    required: keys
+  };
+  const keep = Object.fromEntries(Object.entries(report)
+    .filter(([key]) => !keys.includes(key))
+    .map(([key, value]) => [key, repairSourceExcerpt(value)]));
+  const broken = Object.fromEntries(keys.map(key => [key, repairSourceExcerpt(report[key])]));
+  const guide = keys.map(key => `${key}: ${REPORT_MIN_WORDS[key]}–${REPORT_LIMITS[key]} words`).join("; ");
+  const instruction = `You are repairing only invalid sections in an otherwise approved Brand Pulse report.
+Follow the original report's natural, plain-spoken, commercially sharp, warm UK founder-to-founder voice; retain a subtle knowing smile where it genuinely fits. Avoid jargon, invented evidence and repetition.
+Do not use em dashes (—) in any repaired client-facing field. Restructure the sentence naturally using full stops or commas where appropriate; do not substitute mechanical punctuation or change the meaning.
+Keep the distinction between respondents' confidence and proven commercial performance. Avoid theatrical metaphors, stock punchlines and sweeping judgements. Write with measured, specific confidence.
+Before returning, check each repaired field for em dashes and rewrite any sentence containing one without changing its meaning.
+Do not rewrite the valid sections or introduce new unsupported claims. Return ONLY the corrected named fields as structured JSON.
+Company: ${client.company}.
+Diagnostic scores and 20 answers: ${JSON.stringify(diagnostic)}
+These fields failed validation: ${JSON.stringify(errors)}.
+Word counts required: ${guide}.
+Good surrounding report for voice and logical continuity: ${JSON.stringify(keep)}
+Original rejected excerpts (may be corrupt): ${JSON.stringify(broken)}
+Each corrected field must be meaningful, complete, specific, non-repetitive, with no dates standing alone, links, citations or placeholders.`;
+
+  const job = await openaiRequest(apiKey, {
+    model: "gpt-4.1",
+    background: true,
+    max_output_tokens: 1400,
+    text: {format: {type: "json_schema", name: "brand_pulse_field_repair", strict: true, schema: repairSchema}},
+    metadata: {bp_repair: "1", bp_original: originalResponse.id, bp_fields: keys.join(",")},
+    input: instruction
+  });
+  if (!job.id) return jsonResponse(502, {error:"Report repair did not return a job ID."});
+  console.info("Brand Pulse repair started", {original_id: originalResponse.id, repair_id: job.id, fields: keys});
+  return jsonResponse(202, {status:"processing",stage:"writing",response_id:job.id});
+}
+
+function validateReport(report) {
+  const errors = [];
+  if (!report || typeof report !== "object" || Array.isArray(report)) {
+    return ["Report must be an object."];
+  }
+  for (const [key, maxWords] of Object.entries(REPORT_LIMITS)) {
+    const value = report[key];
+    if (typeof value !== "string" || !value.trim()) {
+      errors.push(`${key}: missing text`);
+      continue;
+    }
+    const text = value.trim();
+    const wordCount = text.split(/\s+/u).filter(Boolean).length;
+    if (wordCount < REPORT_MIN_WORDS[key]) {
+      errors.push(`${key}: too short (${wordCount} words)`);
+    }
+    if (wordCount > maxWords) {
+      errors.push(`${key}: exceeds ${maxWords}-word limit`);
+    }
+    const chunks = text.split(/\n\s*\n/u).map(t => t.trim()).filter(Boolean);
+    if (chunks.length >= 3 && new Set(chunks).size < chunks.length - 1) {
+      errors.push(`${key}: repeated blocks`);
+    }
+    if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}(?:[T\s].*)?$/u.test(text) ||
+        /^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/u.test(text)) {
+      errors.push(`${key}: date instead of report text`);
+    }
+    if (/^(?:n\/?a|none|null|undefined|tbd|todo|placeholder|coming soon|pending|not applicable|\.{3,}|-+)\.?$/iu.test(text)) {
+      errors.push(`${key}: placeholder text`);
+    }
+    if (/https?:\/\/|www\.|cite|【[^】]*】/iu.test(text)) {
+      errors.push(`${key}: contains client-facing link or citation`);
+    }
+  }
+  return errors;
+}
+
+// Process a finished background response using the existing report parsing and draft save.
+async function finishReport(data, client, diagnostic) {
+    console.info("Brand Pulse writing completed", {
+      response_id: data?.id || null,
+      model: data?.model || null,
+      input_tokens: data?.usage?.input_tokens ?? null,
+      output_tokens: data?.usage?.output_tokens ?? null,
+      reasoning_tokens: data?.usage?.output_tokens_details?.reasoning_tokens ?? null,
+      status: data?.status || null
+    });
+    const outputText =
+      data.output_text ||
+      (data.output || [])
+        .flatMap(
+          item =>
+            item.content || []
+        )
+        .filter(
+          c =>
+            c.type === "output_text"
+        )
+        .map(
+          c =>
+            c.text || ""
+        )
+        .join("\n")
+        .trim();
+
+
+    if (!outputText) {
+
+      return jsonResponse(502, {
+        error:
+          "No report data was returned."
+      });
+    }
+
+
+    let report;
+
+
+    try {
+
+      report =
+        JSON.parse(outputText);
+
+    } catch {
+
+      return jsonResponse(502, {
+        error:
+          "The report data could not be parsed."
+      });
+    }
+
+
+    report = cleanReport(report);
+
+    // On a completed repair, retrieve the original output and merge ONLY the
+    // invalid fields. Every previously valid field stays byte-for-byte intact.
+    const repairMeta = data?.metadata;
+    if (repairMeta?.bp_repair === "1") {
+      const originalId = String(repairMeta.bp_original || "");
+      const repairKeys = String(repairMeta.bp_fields || "").split(",").filter(Boolean);
+      if (!/^resp_[a-zA-Z0-9_-]{6,150}$/.test(originalId) ||
+          !repairKeys.length || repairKeys.some(key => !(key in REPORT_LIMITS))) {
+        return jsonResponse(502,{error:"Invalid report-repair metadata."});
+      }
+      const original = await retrieveOpenAIResponse(Netlify.env.get("OPENAI_API_KEY"), originalId);
+      let originalReport;
+      try { originalReport = cleanReport(JSON.parse(responseOutputText(original))); }
+      catch { return jsonResponse(502,{error:"Unable to retrieve the original report for repair."}); }
+      for (const key of repairKeys) {
+        if (typeof report[key] !== "string") return jsonResponse(502,{error:`Repair omitted ${key}.`});
+        originalReport[key] = report[key];
+      }
+      report = originalReport;
+    }
+
+    const validationErrors = validateReport(report);
+    if (validationErrors.length) {
+      console.error("Brand Pulse report validation failed", validationErrors);
+      if (repairMeta?.bp_repair !== "1") {
+        return await beginFieldRepair({originalResponse:data,report,errors:validationErrors,client,diagnostic});
+      }
+      return jsonResponse(422, {
+        error: "A corrected report section did not pass quality checks. No report has been saved.",
+        details: validationErrors
+      });
+    }
+
+    /*
+      Save the completed AI report as a draft
+      for internal review before client delivery.
+    */
+    const savedDraft =
+      await saveDraftToSupabase({
+        client,
+        diagnostic,
+        report
+      });
+
+
+    return jsonResponse(200, {
+
+      report,
+
+      report_id:
+        savedDraft.id,
+
+      scheduled_send_at:
+        savedDraft.scheduled_send_at
+    });
+}
+
+// Separate bounded web research from report writing. A failed research job NEVER
+// becomes an unresearched report presented as website-informed.
+function responseOutputText(data) {
+  return data.output_text || (data.output || [])
+    .flatMap(item => item.content || [])
+    .filter(c => c.type === "output_text")
+    .map(c => c.text || "").join("\n").trim();
+}
+
+async function openaiRequest(apiKey, payload) {
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(data?.error?.message || `OpenAI request failed (${response.status}).`);
+  }
+  return data;
+}
+
+export default async (req) => {
+
+  if (req.method !== "POST") {
+
+    return jsonResponse(405, {
+      error: "Method not allowed."
+    });
+  }
+
+
+  const apiKey =
+    Netlify.env.get("OPENAI_API_KEY");
+
+
+  if (!apiKey) {
+
+    return jsonResponse(500, {
+      error:
+        "OPENAI_API_KEY has not been added to the Netlify site yet."
+    });
+  }
+
+
+  try {
+
+    const body =
+      await req.json();
+
+
+    const {
+      client,
+      diagnostic
+    } = body || {};
+
+
+    if (
+      !client?.company ||
+      !client?.website ||
+      !diagnostic?.answers
+    ) {
+
+      return jsonResponse(400, {
+        error:
+          "Missing client or diagnostic data."
+      });
+    }
+
+
+    if (body?.action === "research") {
+      const domain = normaliseDomain(client.website);
+      const instruction = `Research only the official company site ${client.website} for the company ${client.company}.
+Search or inspect this domain only. Return a short factual briefing (maximum 450 words)
+covering what it offers, whom it serves, stated positioning, products/services,
+and claims supported by the official site. Distinguish company claims from proof.
+Do not invent facts. If the site cannot be researched reliably, clearly state
+RESEARCH_UNAVAILABLE and do not invent a profile. Do not write a diagnostic report.`;
+      const job = await openaiRequest(apiKey, {
+        model: Netlify.env.get("OPENAI_MODEL") || "gpt-5.1",
+        background: true,
+        tools: [{type:"web_search", filters:{allowed_domains:[domain]}, search_context_size:"low"}],
+        input: instruction
+      });
+      if (!job.id) return jsonResponse(502,{error:"Research did not return a job ID."});
+      return jsonResponse(202,{status:"processing",stage:"research",response_id:job.id});
+    }
+
+    if (body?.action === "poll") {
+      const id = String(body.response_id || "");
+      if (!/^resp_[a-zA-Z0-9_-]{6,150}$/.test(id)) {
+        return jsonResponse(400, {error: "Invalid report job ID."});
+      }
+
+      const result = await fetch(
+        `https://api.openai.com/v1/responses/${encodeURIComponent(id)}`,
+        { headers: { Authorization: `Bearer ${apiKey}` } }
+      );
+      const data = await result.json().catch(() => null);
+      if (!result.ok) {
+        return jsonResponse(result.status, {
+          error: data?.error?.message || "Unable to check report progress."
+        });
+      }
+      if (data.status === "failed" || data.status === "cancelled" || data.status === "incomplete") {
+        const reason = data?.error?.message || data?.incomplete_details?.reason || data.status;
+        const outputLimitHit = body.stage !== "research" && data.status === "incomplete" && reason === "max_output_tokens";
+        console.error("Brand Pulse background job did not complete", {
+          stage: body.stage === "research" ? "research" : "writing",
+          response_id: id,
+          status: data.status,
+          reason,
+          input_tokens: data?.usage?.input_tokens ?? null,
+          output_tokens: data?.usage?.output_tokens ?? null
+        });
+        return jsonResponse(502, {
+          error: outputLimitHit
+            ? "Report writing exceeded its output limit and was stopped safely. No report has been saved."
+            : `OpenAI ${body.stage === "research" ? "research" : "writing"} ended with status ${data.status}: ${reason}. No report has been saved.`
+        });
+      }
+      if (data.status !== "completed") {
+        return jsonResponse(202, {status: "processing", stage: body.stage === "research" ? "research" : "writing", response_id: id});
+      }
+      if (body.stage === "research") {
+        const briefing = responseOutputText(data);
+        if (!briefing || briefing.includes("RESEARCH_UNAVAILABLE")) {
+          return jsonResponse(422, {error:"We couldn't verify enough company information from this website to produce a researched report."});
+        }
+        return jsonResponse(200,{status:"research_complete",stage:"research",research:briefing.slice(0,5500)});
+      }
+      return await finishReport(data, client, diagnostic);
+    }
+
+    // Stage two must have a completed, readable research briefing.
+    // Refuse to generate an apparently researched report without one.
+    const researchBriefing = typeof body.research === "string" ? body.research.trim() : "";
+    if (researchBriefing.length < 50 || researchBriefing.length > 5500) {
+      return jsonResponse(400,{error:"Verified website research is required before report writing."});
+    }
+
+
+
+    const prompt = `
+You are a senior growth strategist at The Creative Lab, specialising in health, wellness, nutrition and longevity brands.
+
+Your job is to turn diagnostic scores and responses into a personalised, commercially insightful report that helps a founder or marketing leader understand their business more clearly and see what deserves attention next.
+
+Write like an experienced strategist having a thoughtful, direct conversation with a capable business leader.
+
+Be commercially sharp, confident, curious and constructive.
+
+Sound authoritative because the thinking is good, not because the language sounds corporate.
+
+
+CLIENT
+
+Company: ${client.company}
+Website: ${client.website}
+Contact: ${client.contact_name || ""}
+Role: ${client.position || ""}
+
+
+DIAGNOSTIC
+
+Overall score: ${diagnostic.overall_score}/100
+Strongest dimension: ${diagnostic.strongest_dimension}
+Weakest dimension: ${diagnostic.weakest_dimension}
+Largest gap: ${diagnostic.largest_gap} points
+Pattern: ${diagnostic.pattern}
+
+
+Dimension scores:
+
+${Object.entries(diagnostic.dimensions || {})
+  .map(([k, v]) => `- ${k}: ${v}/100`)
+  .join("\n")}
+
+
+Individual answers:
+
+${diagnostic.answers
+  .map(
+    a =>
+      `- ${a.dimension} | ${a.question} | ${a.score}/9`
+  )
+  .join("\n")}
+
+
+
+TASK
+
+Use the completed website research briefing supplied below. The research was carried out as a separate step. Do not conduct further web searches. Establish only the public business context clearly supported by that briefing.
+
+This may include:
+
+- what the company offers
+- its stated audience
+- its positioning
+- its products or services
+- its offer structure
+- its business model where evident
+- relevant proof points or claims
+
+Then interpret the diagnostic specifically for this company.
+
+The score engine has already calculated the scores and overall diagnosis.
+
+Do not recalculate, override or challenge them.
+
+
+
+WEBSITE RESEARCH IS INTERNAL ONLY
+
+Use the company's website to understand the business, but never expose the research process in the client-facing report.
+
+The report must NEVER contain:
+
+- URLs
+- hyperlinks
+- citations
+- citation markers
+- footnotes
+- source references
+- domain names
+- markdown links
+- page titles
+- phrases such as "according to your website"
+- phrases such as "the website states"
+- phrases such as "our research found"
+- phrases such as "verified on your website"
+
+Absorb verified business context naturally into the interpretation.
+
+
+
+WRITING STYLE
+
+Write as though you are talking to a smart, ambitious founder or marketing leader, not presenting to a board.
+
+The tone should be:
+
+- conversational, but not casual
+- insightful, but not academic
+- confident, but not arrogant
+- positive where justified, but not relentlessly upbeat
+- practical, but not simplistic
+- commercially focused, without sounding like a management consultant
+
+Use clear, natural conversational English.
+
+PUNCTUATION AND RHYTHM
+
+Do not use em dashes (—) in any client-facing report field. Rewrite the sentence naturally using a full stop, comma or a clearer sentence structure. Do not mechanically replace em dashes with another punctuation mark or introduce repeated colons, semicolons or forced contrasts. Keep the meaning, nuance and conversational UK voice intact. This rule applies to headlines, commentary and Now / Next / Nurture.
+
+Prefer short, direct sentences and familiar words.
+
+Translate abstract marketing concepts into recognisable business situations.
+
+Use specific examples relevant to the brand, its products, customers and business model where the evidence supports them.
+
+Avoid jargon, buzzwords, generic consultancy language and unnecessarily complicated phrasing.
+
+Do not use expressions such as:
+
+- "insight-fed playbooks"
+- "activate the growth ecosystem"
+- "codify the brand narrative"
+- "unlock synergies"
+- "optimise the demand architecture"
+
+Do not narrate the analytical process.
+
+Avoid repetitive phrases such as:
+
+- "your responses indicate"
+- "your responses suggest"
+- "the diagnostic suggests"
+- "the data suggests"
+- "this implies"
+- "this indicates"
+- "based on the evidence"
+- "you appear to"
+
+Prefer direct observations such as:
+
+- "You have good clarity around..."
+- "The weaker area is..."
+- "There is a clear gap between..."
+- "The opportunity is..."
+- "The tension is between..."
+
+Do not turn a respondent's low confidence into a proven claim about customer behaviour, team alignment, sales performance or market outcomes. Where there is uncertainty, frame the finding as a question or an area to investigate, not an established failure.
+
+Avoid forced wit, colourful labels and familiar metaphors such as red flags, stalled engines, shouting brands or shelf-filler comparisons. A genuinely revealing observation is more persuasive than a punchline. Keep natural warmth when it earns its place.
+
+Do not force website facts into every paragraph.
+
+Use them only where they sharpen the insight.
+
+
+THE CREATIVE LAB VOICE — MIKE'S FOUNDER-TO-FOUNDER TONE
+
+This voice is a core part of the product, not a light garnish. Write like a smart, experienced Creative Lab strategist talking directly to a founder they like and respect over coffee. The conversation should feel warm, natural, commercially switched-on, slightly cheeky and occasionally playful. The client is in capable hands, but this is not a formal consultancy report wearing a conversational disguise.
+
+Sound like a real person with experience and a point of view. Speak directly to "you". Use contractions, ordinary British English and a natural conversational rhythm. Mix crisp observations with slightly longer thoughts where that sounds human. The tone can have energy, warmth, a raised eyebrow or gentle irony; it must never feel flat, stiff, corporate or scripted.
+
+The test: would a bright, commercially minded founder recognise this as a useful, thoughtful observation from someone who understands their business? The insight should carry the personality. Plain, professional language is welcome when it says exactly what matters.
+
+CONVERSATION, PERSONALITY AND A SMILE IN THE MIND
+
+Give the writing the confidence and character of someone who has seen this kind of challenge before. A natural, lightly mischievous aside, a revealing comparison, a gently awkward question or a wry observation can make the insight stick. These are legitimate tools of the voice, not things to suppress.
+
+The humour should emerge from something true about THIS business. It may be playful or gently provocative, but it should never be a punchline bolted on to an otherwise ordinary paragraph. Be willing to nudge the reader: an occasional "Here's the slightly awkward question..." or "The temptation is to..." can work when the finding earns it. Don't use either as a fixed catchphrase.
+
+Let personality emerge naturally from a specific insight. There is no quota for winks, jokes or clever comparisons. A report can be warm and distinctive without a single joke, particularly when a business is struggling. When a light aside genuinely helps the reader see something differently, keep it brief and move on.
+
+Challenge constructively. Show the founder that we're on their side. An uncomfortable observation should feel like an intelligent conversation with someone who wants them to succeed, never a dressing-down. Keep the analysis commercially sharp; warmth must not dilute the point.
+
+PLAIN SPEAKING — NO CONSULTANCY COSTUME
+
+Use language people actually say aloud. Be specific. Choose a concrete point about the business over an abstract label. Don't show off with strategy terminology, and don't manufacture clever phrases to replace it.
+
+Avoid expressions such as "codify", "growth thesis", "growth levers", "influence engine", "commercial design", "compounding model", "agentic consumer intel", "category asset", "fully weaponised", "the scalable edge", "offer ladder" and "systemise". Normal business words such as positioning, revenue, customers, profit and retention are fine when they clarify rather than obscure.
+
+For example, "work out which enquiries turn into the right clients" is more natural than "optimise acquisition-channel attribution". These examples guide the register; do not recycle them as stock lines.
+
+Don't rely on the same mechanical metaphor, joke structure or three-part rhetorical rhythm throughout. Avoid overworked agency phrases and generic compliments. Each report should feel freshly observed, not assembled from favourite one-liners.
+
+THE BRIEF MUST FIT THE SPACE
+
+Maintain the established report structure and all section word limits. The five area commentaries have a hard ceiling of 77 words each, not a target. Headlines stay within 14 words. Do not add extra sections, explanations or mini-consultancy plans to accommodate the personality. Let a well-chosen phrase do the work of a paragraph.
+
+Keep the five commentaries similar in visual weight without padding. Avoid repeating the same theme in score meaning, what stands out, the five areas and the recommendations. Vary the function of each section: make a point, deepen it where useful, and move forward.
+
+EVIDENCE IS THE FOUNDATION OF THE CHALLENGE
+
+The diagnostic answers reveal the respondent's level of confidence, not independently proven commercial results. Low confidence in retention is not proof of churn. Low confidence in demand generation is not proof that enquiries depend on referrals. Do not invent facts about the client's pipeline, team, revenue, pricing, audience, marketing channels or customer behaviour.
+
+Separate what the answers show from what might reasonably be investigated. Publicly stated company offers and positioning are context, not evidence that the company delivers them effectively. Where the finding is uncertain, write a pointed but fair question or a possible risk, not a confident declaration. Do not turn hedging into lifeless prose: be clear about what IS known.
+
+TONE SHOULD FOLLOW THE SCORE
+
+High scores: be genuinely appreciative of the success, then look for the next worthwhile question rather than inventing a defect.
+Balanced scores: notice the trade-offs and ask the gently awkward question that helps the founder prioritise.
+Low scores: be direct, respectful and constructive; the personality can live in a precise, humane observation without joking about weakness.
+
+FINAL EDIT, SILENTLY
+
+Read the finished report aloud as a conversation between experienced business people. Does it sound natural, warm and commercially sharp? Is every claim supported, each section concise, and the advice proportionate? Remove any sentence that performs personality rather than adding insight. Check every field for em dashes and rewrite any affected sentence naturally. Replace forced metaphors or overconfident inferences with clear, evidence-led observations. Fix flat, bureaucratic, over-clever or repetitive lines before returning the JSON.
+
+
+COMMERCIAL IMPLICATIONS
+
+Go beyond simply describing the scores.
+
+Where the evidence supports it, explain why a finding matters commercially.
+
+This may relate to:
+
+- growth
+- customer acquisition
+- brand preference
+- retention
+- profitability
+- scalability
+- decision-making
+
+However, never invent a commercial consequence.
+
+If the evidence only reveals a gap or tension, describe that gap or tension and stop there.
+
+Do not turn correlation into causation.
+
+
+
+CORE INTERPRETATION RULE
+
+Do not write generic commentary based only on a dimension score.
+
+For each area consider:
+
+- all four answers
+- the strongest answer
+- the weakest answer
+- tensions or contradictions between them
+- relevant verified business context
+- the commercial implication where genuinely supported
+
+Every area commentary must contain at least one observation that could only have come from this client's answers or business context.
+
+Two businesses with the same score should be capable of receiving materially different commentary.
+
+
+
+REPORT STRUCTURE
+
+
+score_meaning
+
+Maximum 90 words.
+
+Interpret the overall score and broad performance picture.
+
+Explain what the combination of strengths and weaknesses says about the business.
+
+Do not simply translate the score into a generic label.
+
+
+stands_out
+
+Maximum 85 words.
+
+Identify the most interesting or revealing pattern across the diagnostic.
+
+Aim for the reaction:
+
+"That's interesting. I hadn't quite looked at the business that way."
+
+Do not repeat score_meaning.
+
+
+
+THE FIVE AREAS
+
+For each area return:
+
+1. A short human headline.
+2. One concise paragraph.
+
+The headline should be memorable and revealing, not cute or advertising copy.
+
+Keep the five commentaries broadly similar in visual weight and length. Up to 77 words each is a ceiling, not a target. Do not pad a shorter insight to match the others. Prefer one compact paragraph per area.
+
+Do not create visible labels such as "What we're seeing" or "Why it matters".
+
+Do not include a mini action plan under every dimension.
+
+Save the strongest recommendations for WHERE TO FOCUS NEXT.
+
+
+strategic_headline
+
+Maximum 14 words.
+
+strategic_commentary
+
+Maximum 77 words.
+
+
+consumer_headline
+
+Maximum 14 words.
+
+consumer_commentary
+
+Maximum 77 words.
+
+
+market_headline
+
+Maximum 14 words.
+
+market_commentary
+
+Maximum 77 words.
+
+
+growth_headline
+
+Maximum 14 words.
+
+growth_commentary
+
+Maximum 77 words.
+
+
+commercial_headline
+
+Maximum 14 words.
+
+commercial_commentary
+
+Maximum 77 words.
+
+
+
+WHERE TO FOCUS NEXT
+
+This should be the strongest part of the report.
+
+Do not simply repeat the five areas.
+
+Synthesize the entire diagnostic.
+
+Identify the single most important opportunity or sequence of opportunities.
+
+Explain why it deserves priority.
+
+The reader should finish with a clearer sense of direction.
+
+
+focus_next_intro
+
+Maximum 90 words.
+
+Explain the central opportunity and why it matters.
+
+Then use The Creative Lab's Now / Next / Nurture framework.
+
+
+now
+
+Maximum 65 words.
+
+The immediate priority.
+
+What should the business investigate, clarify or fix first?
+
+Give clear direction without turning it into a free consultancy plan.
+
+
+next
+
+Maximum 65 words.
+
+What should the business test, build or change once the first issue is better understood?
+
+
+nurture
+
+Maximum 65 words.
+
+What should the business develop, improve or scale over time?
+
+
+NOW / NEXT / NURTURE PRINCIPLE
+
+The sequence must feel connected.
+
+NOW should create the understanding needed for NEXT.
+
+NEXT should create the learning or capability needed for NURTURE.
+
+Do not produce three unrelated recommendations.
+
+Make the direction feel clear, proportionate and achievable.
+
+Do not manufacture optimism.
+
+
+
+DIAGNOSTIC PRECEDENCE
+
+When interpreting the overall pattern, use this order:
+
+1. Major imbalance between areas.
+2. Systemic weakness if four or five dimensions are below 50.
+3. Strong foundations but weak conversion or Growth Engine.
+4. Strong commercial engine but weak strategic or brand foundations.
+5. Relatively flat profile — describe the overall level rather than inventing a dramatic weakness.
+
+
+
+EVIDENCE DISCIPLINE
+
+Do not extend a diagnostic observation into a commercial consequence unless that consequence is directly supported by the answers or verified business context.
+
+Avoid unsupported claims such as:
+
+- "this will cap growth"
+- "this will weaken pricing power"
+- "this puts retention at risk"
+- "this makes acquisition inefficient"
+- "this creates reliance on direct selling"
+
+unless directly evidenced.
+
+Do not make unsupported assumptions about:
+
+- sales behaviour
+- pricing
+- retention
+- acquisition
+- pipeline
+- customer loyalty
+- internal capability
+- market position
+- competitor behaviour
+- commercial model
+
+If something is plausible but not evidenced, do not state it as fact.
+
+
+
+FINAL RULES
+
+- Make the report specific to this business.
+- Use the relationship between the 20 answers, five scores and verified business context.
+- Do not simply repeat scores in prose.
+- Do not exaggerate weaknesses.
+- Do not manufacture problems.
+- Do not repeat the same insight across sections.
+- Once the insight has landed, stop.
+- Be direct and constructive.
+- Keep enough depth back for a follow-up conversation.
+- Avoid generic encouragement.
+- Avoid obvious AI phrasing.
+- Avoid neat rhetorical formulas.
+- Avoid excessive three-part constructions.
+- Avoid unnecessary colons and semicolons.
+- Prefer plain English.
+- Never include citations, links or source references in any JSON value.
+
+Return ONLY valid JSON matching the requested schema.
+
+WEBSITE RESEARCH BRIEFING (internal, not client-facing):
+${researchBriefing}
+`.trim();
+
+
+
+    const response =
+      await fetch(
+        "https://api.openai.com/v1/responses",
+        {
+          method: "POST",
+
+          headers: {
+            "Authorization":
+              `Bearer ${apiKey}`,
+
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify({
+
+              // Writing uses a non-reasoning, structured-output model to avoid
+              // the observed GPT-5.1 128k-output runaway. Research model unchanged.
+              model: "gpt-4.1",
+
+              text: {
+                format: {
+                  type:
+                    "json_schema",
+
+                  name:
+                    "brand_performance_report",
+
+                  strict:
+                    true,
+
+                  schema: REPORT_SCHEMA
+                }
+              },
+
+              background: true,
+
+              // Hard stop against runaway generation (previously hit 128,000 output tokens).
+              // This is an API limit, not a change to the approved report word limits.
+              max_output_tokens: 6000,
+
+              input:
+                prompt
+            })
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    if (!response.ok) {
+
+      const msg =
+        data?.error?.message ||
+        "OpenAI request failed.";
+
+      return jsonResponse(
+        response.status,
+        {
+          error: msg
+        }
+      );
+    }
+
+
+    // Background generation returns quickly; the browser polls for completion.
+    if (!data?.id) {
+      return jsonResponse(502, {error: "OpenAI did not return a report job ID."});
+    }
+    return jsonResponse(202, {status: "processing", stage: "writing", response_id: data.id});
+
+
+  } catch (err) {
+
+    return jsonResponse(500, {
+      error:
+        err?.message ||
+        "Unexpected error."
+    });
+  }
+};
