@@ -1625,56 +1625,20 @@
       </div></div>`;
   }
 
+  // Each browser submission keeps its ID across retries of the same form.
+  let submissionToken = null;
   async function renderEmailPreview(){
-
-    app.classList.add(
-      'email-mode'
-    );
-
-
-    const r=
-      buildEmailReport();
-
-    const a=
-      r.a;
-
-
-    app.innerHTML=`
-      <div class="screen">
-
-        ${header()}
-
-
-        <div class="body">
-
-          <h2>
-            Preparing your diagnostic
-          </h2>
-
-
-          <p class="test-note">
-            We're preparing your personalised report. Please keep this page open until your submission is confirmed.
-          </p>
-
-
-          <div class="ai-loading">
-
-            <strong>
-              Analysing ${brand}
-            </strong>
-
-            <span>
-              Reviewing the business and interpreting the diagnostic results…
-            </span>
-
-          </div>
-
-        </div>
-
-      </div>
-    `;
-
-
+    app.classList.add('email-mode');
+    const r=buildEmailReport();
+    const a=r.a;
+    app.innerHTML=`<div class="screen">${header()}<div class="body">
+      <h2>Confirming your submission</h2>
+      <p class="test-note">We're securely recording your diagnostic.</p>
+      <div class="ai-loading"><strong>Submitting ${escapeHtml(brand)}</strong>
+      <span>Please keep this page open until we confirm receipt.</span></div>
+      <div id="submissionError" class="error" role="alert"></div>
+      <button class="primary" id="retrySubmission" style="display:none">Try again</button>
+      </div></div>`;
     const payload={
 
       client:{
@@ -1752,128 +1716,27 @@
           )
       }
     };
-
-
-    try{
-
-      const endpoint='/.netlify/functions/generate-report';
-      async function sendReportRequest(requestPayload){
-        const response=await fetch(endpoint,{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify(requestPayload)
+    const send=async()=>{
+      const retry=document.getElementById('retrySubmission');
+      const error=document.getElementById('submissionError');
+      if(retry)retry.style.display='none';
+      if(error)error.textContent='';
+      if(!submissionToken) submissionToken=crypto.randomUUID();
+      try{
+        const response=await fetch('/.netlify/functions/brandpulse-submit',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({...payload,submission_token:submissionToken})
         });
-        const raw=await response.text();
-        let data;
-        try { data=JSON.parse(raw); }
-        catch {
-          throw new Error(response.status===504
-            ? 'Report generation timed out. Please try again.'
-            : 'The report service returned an unexpected response ('+response.status+').');
-        }
-        if(!response.ok){
-          throw new Error(data.error || 'Unable to generate report.');
-        }
-        return data;
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok||!result.received)throw Error(result.error||'We could not confirm your submission.');
+        state='done';render();
+      }catch(e){
+        if(error)error.textContent='We could not confirm your submission. Please try again.';
+        if(retry){retry.style.display='block';retry.onclick=send;}
       }
-
-      async function pollJob(initial, stage, seconds) {
-        let result=initial;
-        const deadline=Date.now()+seconds*1000;
-        while(result.status==='processing') {
-          if(Date.now()>deadline) {
-            throw new Error(stage==='research'
-              ? 'Website research did not complete. No report has been generated.'
-              : 'OpenAI is still writing after seven minutes. No completion was confirmed, so no report has been saved. Please contact The Creative Lab rather than submitting again.');
-          }
-          await new Promise(resolve=>setTimeout(resolve,3500));
-          result=await sendReportRequest({
-            action:'poll',stage,response_id:result.response_id,
-            client:payload.client,diagnostic:payload.diagnostic
-          });
-        }
-        return result;
-      }
-      // Stage 1: research the client's official domain with a separate job.
-      let research=await pollJob(
-        await sendReportRequest({...payload,action:'research'}),
-        'research',180
-      );
-      if(research.status!=='research_complete' || !research.research) {
-        throw new Error('Website research could not be completed.');
-      }
-      const loadingLabel=document.querySelector('.ai-loading span');
-      if(loadingLabel) loadingLabel.textContent='Research complete. Writing your personalised report…';
-      // Stage 2: write with Mike's approved voice and the completed research.
-      let data=await pollJob(
-        await sendReportRequest({...payload,action:'write',research:research.research}),
-        'writing',420
-      );
-      if(!data.report || !data.report_id) {
-        throw new Error('Your report could not be confirmed as saved.');
-      }
-
-      // The report is stored for internal review, never shown to the respondent.
-      state='done';
-      render();
-
-    }catch(err){
-
-      app.innerHTML=`
-        <div class="screen">
-
-          ${header()}
-
-
-          <div class="body">
-
-            <h2>
-              We couldn't complete your submission
-            </h2>
-
-
-            <div class="ai-error">
-
-              <strong>
-                Unable to generate the report.
-              </strong>
-
-              <p>
-                ${escapeHtml(
-                  err.message ||
-                  'Something went wrong.'
-                )}
-              </p>
-
-            </div>
-
-
-            <button
-              class="primary"
-              id="backToResult"
-            >
-              Back to score
-            </button>
-
-          </div>
-
-        </div>
-      `;
-
-
-      document
-        .getElementById(
-          'backToResult'
-        )
-        .onclick=()=>{
-
-          state='result';
-
-          render();
-        };
-    }
+    };
+    await send();
   }
-
 
   function escapeHtml(value){
 
@@ -2020,7 +1883,7 @@
 
 
         <p>
-          Your personalised Brand Performance Diagnostic will be with you within the next three hours.
+          Thank you. We have received your diagnostic and will email your personalised report in line with our delivery schedule.
         </p>
 
 
@@ -2064,6 +1927,8 @@
           Array(20).fill(null);
 
         email='';
+
+        submissionToken=null;
 
         brand='';
 
