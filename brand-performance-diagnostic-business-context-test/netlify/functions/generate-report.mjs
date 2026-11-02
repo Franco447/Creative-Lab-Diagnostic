@@ -104,8 +104,19 @@ async function saveDraftToSupabase({
   }
 
 
-  const scheduledSendAt =
-    threeHoursFromNow();
+  const submissionId=client._submission_id;
+  let scheduledSendAt=threeHoursFromNow();
+  if(submissionId){
+    if(!/^[0-9a-f-]{36}$/i.test(submissionId))throw Error('Invalid submission ID');
+    const auth={apikey:supabaseSecret,Authorization:`Bearer ${supabaseSecret}`};
+    const lookup=await fetch(`${supabaseUrl}/rest/v1/brandpulse_submissions?id=eq.${submissionId}&select=id,created_at,payload`,{headers:auth});
+    const rows=await lookup.json().catch(()=>null);
+    if(!lookup.ok || rows?.length!==1 || rows[0].payload?.client?.email!==client.email || rows[0].payload?.client?.company!==client.company)
+      throw Error('Stored submission could not be verified');
+    const scheduleResp=await fetch(`${supabaseUrl}/rest/v1/rpc/brandpulse_next_delivery`,{method:'POST',headers:{...auth,'Content-Type':'application/json'},body:JSON.stringify({submitted:rows[0].created_at})});
+    scheduledSendAt=await scheduleResp.json().catch(()=>null);
+    if(!scheduleResp.ok||typeof scheduledSendAt!=='string')throw Error('Cannot calculate submission delivery time');
+  }
 
 
   const dimensions =
@@ -159,8 +170,11 @@ async function saveDraftToSupabase({
     status:
       "draft",
 
+    // Background submissions remain ineligible until the worker confirms completion.
     delivery_enabled:
-      true,
+      !submissionId,
+
+    ...(submissionId?{brandpulse_submission_id:submissionId}:{}),
 
     scheduled_send_at:
       scheduledSendAt
@@ -169,7 +183,7 @@ async function saveDraftToSupabase({
 
   const response =
     await fetch(
-      `${supabaseUrl}/rest/v1/diagnostic_reports`,
+      `${supabaseUrl}/rest/v1/diagnostic_reports${submissionId?'?on_conflict=brandpulse_submission_id':''}`,
       {
         method: "POST",
 
@@ -180,11 +194,9 @@ async function saveDraftToSupabase({
           "apikey":
             supabaseSecret,
 
-          "Authorization":
-            `Bearer ${supabaseSecret}`,
-
           "Prefer":
-            "return=representation"
+            submissionId?"resolution=ignore-duplicates,return=representation":"return=representation",
+            "Authorization":`Bearer ${supabaseSecret}`
         },
 
         body:
@@ -200,18 +212,6 @@ async function saveDraftToSupabase({
 
   if (!response.ok) {
 
-    // Temporary staging diagnostic: no keys, tokens, client data or payloads.
-    console.error("Brand Pulse Supabase draft save rejected", {
-      http_status: response.status,
-      postgres_code: typeof data?.code === "string" ? data.code.slice(0, 24) : null,
-      key_format: supabaseSecret.startsWith("sb_secret_")
-        ? "supabase_secret"
-        : supabaseSecret.startsWith("eyJ")
-          ? "legacy_jwt"
-          : "other",
-      authorization_sent: true
-    });
-
     const message =
       data?.message ||
       data?.error ||
@@ -221,11 +221,14 @@ async function saveDraftToSupabase({
   }
 
 
-  const saved =
-    Array.isArray(data)
-      ? data[0]
-      : data;
-
+  let saved=Array.isArray(data)?data[0]:data;
+  // Existing completed response may be polled again after an interrupted acknowledgement.
+  if(!saved?.id && submissionId){
+    const lookup=await fetch(`${supabaseUrl}/rest/v1/diagnostic_reports?brandpulse_submission_id=eq.${submissionId}&select=*`,{headers:{apikey:supabaseSecret,Authorization:`Bearer ${supabaseSecret}`}});
+    const rows=await lookup.json().catch(()=>null);
+    if(!lookup.ok||rows?.length!==1)throw Error('Cannot reconcile existing report');
+    saved=rows[0];
+  }
 
   if (!saved?.id) {
     throw new Error(
@@ -238,7 +241,7 @@ async function saveDraftToSupabase({
   // database rule defaulted it to false, try one explicit update and verify it.
   // Do not touch scheduled_send_at: the UK delivery schedule belongs to the DB.
   let persisted = saved;
-  if (persisted.delivery_enabled !== true) {
+  if (!submissionId && persisted.delivery_enabled !== true) {
     const fixResponse = await fetch(
       `${supabaseUrl}/rest/v1/diagnostic_reports?id=eq.${encodeURIComponent(saved.id)}&select=id,delivery_enabled,scheduled_send_at`,
       {
@@ -258,7 +261,7 @@ async function saveDraftToSupabase({
     }
     persisted = fixRows[0];
   }
-  if (persisted.delivery_enabled !== true) {
+  if (!submissionId && persisted.delivery_enabled !== true) {
     throw new Error("Report saved, but the database kept automatic delivery disabled. Check Supabase database rules.");
   }
 
@@ -659,6 +662,12 @@ export default async (req) => {
       diagnostic
     } = body || {};
 
+
+    if(client?._submission_id){
+      const secret=Netlify.env.get('BRANDPULSE_WORKER_KEY');
+      if(!secret || req.headers.get('x-brandpulse-worker-key')!==secret)
+        return jsonResponse(403,{error:'Internal generation access required.'});
+    }
 
     if (
       !client?.company ||
