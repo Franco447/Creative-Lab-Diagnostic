@@ -12,6 +12,8 @@ const reportValid = row => {
   if (typeof r === 'string') { try { r = JSON.parse(r); } catch { return false; } }
   return r && required.every(k => typeof r[k] === 'string' && r[k].trim().length > 12);
 };
+const DIRECTOR_EMAILS = ['franco@thec-lab.co.uk', 'michael@thec-lab.co.uk', 'paul@thec-lab.co.uk'];
+const directorBcc = clientEmail => DIRECTOR_EMAILS.filter(email => email !== String(clientEmail || '').trim().toLowerCase());
 const INTERNAL = new Set(['franco@thec-lab.co.uk', 'michael@thec-lab.co.uk', 'paul@thec-lab.co.uk']);
 const testRow = row => String(row.company_name || '').startsWith('[BP TEST] ') && INTERNAL.has(String(row.client_email || '').toLowerCase().trim());
 
@@ -58,8 +60,7 @@ async function run() {
       const {html, attachment, logoAttachment,categoryAttachments}=render(row);
       const payload = {
         from:FROM,to:[row.client_email.trim()],
-        // Directors receive private report copies in live delivery mode only.
-        ...(mode === 'live' ? {bcc:['michael@thec-lab.co.uk','paul@thec-lab.co.uk']} : {}),
+        bcc: directorBcc(row.client_email),
         reply_to:'paul@thec-lab.co.uk',
         subject:`${mode === 'test' ? '[TEST] ' : ''}Your Brand Pulse report — ${String(row.company_name).slice(0,80)}`,
         html,attachments:[{filename:'brand-pulse-score.png',content:attachment,content_id:'brand-pulse-donut'},{filename:'creative-lab-logo.png',content:logoAttachment,content_id:'brand-pulse-logo'},...categoryAttachments]
