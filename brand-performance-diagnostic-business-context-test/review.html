@@ -162,6 +162,19 @@ button{
   border-radius:5px;
   font-size:13px;
   color:#ddd;
+  position:relative;
+}
+
+/* A restrained active location marker beneath the selected menu entry. */
+.sidebar-link.active::after{
+  content:'';
+  position:absolute;
+  left:11px;
+  right:11px;
+  bottom:3px;
+  height:3px;
+  background:var(--sage);
+  border-radius:2px;
 }
 
 .sidebar button.sidebar-link{border:0;background:transparent;text-align:left;width:100%;cursor:pointer}
@@ -245,7 +258,15 @@ button{
   border-radius:9px;
   background:#fff;
   text-align:left;
+  position:relative;
+  overflow:hidden;
 }
+
+/* Card status uses existing workflow data: these are stages, not completion estimates. */
+.workflow-track{position:absolute;inset:auto 0 0;height:5px;background:#e8e6e2;overflow:hidden}
+.workflow-fill{height:100%;background:var(--sage);border-radius:0 2px 2px 0}
+.workflow-fill.is-complete{background:var(--plum)}
+.workflow-fill.is-error{background:#B17D60}
 
 .diagnostic-card:hover{
   border-color:#aaa;
@@ -859,7 +880,7 @@ button{
     </div>
 
     <button type="button" class="sidebar-link active" data-folder="overview">Overview</button>
-    <button type="button" class="sidebar-link" data-folder="new">New Submissions</button>
+    <button type="button" class="sidebar-link" data-folder="new">New Submissions <span id="newSubmissionsCount"></span></button>
     <button type="button" class="sidebar-link" data-folder="attention">Needs Attention <span id="attentionCount"></span></button>
     <button type="button" class="sidebar-link" data-folder="scheduled">Scheduled</button>
     <button type="button" class="sidebar-link" data-folder="sent">Sent Reports</button>
@@ -1576,6 +1597,17 @@ async function loadReports(){
 }
 
 
+// Visual workflow stages, not a percentage estimate of AI generation time.
+// Unknown statuses deliberately show an empty track rather than guessed progress.
+function workflowBar(status, isSubmission=false){
+  const stages=isSubmission
+    ? {queued:12,researching:28,writing:45,failed:45}
+    : {draft:62,paused:75,approved:82,sending:90,sent:100,delivery_error:90};
+  const stage=Object.prototype.hasOwnProperty.call(stages,status)?stages[status]:0;
+  const extra=['failed','delivery_error'].includes(status)?' is-error':status==='sent'?' is-complete':'';
+  return `<div class="workflow-track" aria-hidden="true"><div class="workflow-fill${extra}" style="width:${stage}%"></div></div>`;
+}
+
 function renderDiagnosticCards(){
   const heading=document.querySelector('.list-head h1');
   const labels={overview:'Overview',new:'New Submissions',attention:'Needs Attention',scheduled:'Scheduled',sent:'Sent Reports',all:'All Submissions',archived:'Archived Test Records'};
@@ -1585,6 +1617,9 @@ function renderDiagnosticCards(){
   const pending=submissions.filter(s=>s.status!=='completed'&&!archivedSubmissionIds.has(String(s.id)));
   const archivedPending=submissions.filter(s=>archivedSubmissionIds.has(String(s.id)));
   const archiveCount=archivedReports.length+archivedPending.length;
+  // Count what the New Submissions folder actually displays (not a claim of unread status).
+  const newCount=visibleReports.filter(r=>r.status==='draft').length+pending.filter(s=>s.status!=='failed').length;
+  document.getElementById('newSubmissionsCount').textContent=newCount?`(${newCount})`:'';
   document.getElementById('archivedCount').textContent=archiveReady&&archiveCount?`(${archiveCount})`:'';
   if(activeFolder==='archived'){
     diagnosticGrid.innerHTML=archiveReady
@@ -1620,10 +1655,12 @@ function renderDiagnosticCards(){
    <div class="card-meta">${escapeHtml(s.payload?.client?.contact_name||'')}<br>${formatDate(s.created_at)}</div>
    <span class="status-pill">${s.status==='failed'?'Generation failed':s.status==='queued'?'Queued':s.status==='writing'?'Writing':'Researching'}</span>
    ${s.status==='failed'?`<p class="card-meta">${escapeHtml(s.last_error||'Needs regeneration')}</p><button class="action-button dark" data-retry="${s.id}">Regenerate Report</button>`:''}
+   ${workflowBar(s.status,true)}
    </div>`),...filteredReports.map(r=>`<button class="diagnostic-card" data-id="${r.id}">
    <div class="card-company">${escapeHtml(r.company_name)}</div>
    <div class="card-meta">${escapeHtml(r.client_name||'')}<br>${escapeHtml(String(r.overall_score))}/100 · ${formatDate(r.created_at)}</div>
-   <span class="status-pill">${escapeHtml(r.status)}</span></button>`)].join('');
+   <span class="status-pill">${escapeHtml(r.status)}</span>
+   ${workflowBar(r.status)}</button>`)].join('');
   diagnosticGrid.innerHTML=cards||'No submissions in this folder.';
   diagnosticGrid.querySelectorAll('[data-id]').forEach(button=>button.addEventListener('click',()=>{
     const report=reports.find(r=>r.id===button.dataset.id);if(report)openReport(report);
