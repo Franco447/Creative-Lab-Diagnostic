@@ -864,6 +864,7 @@ button{
     <button type="button" class="sidebar-link" data-folder="scheduled">Scheduled</button>
     <button type="button" class="sidebar-link" data-folder="sent">Sent Reports</button>
     <button type="button" class="sidebar-link" data-folder="all">All Submissions</button>
+    <button type="button" class="sidebar-link" data-folder="archived">Archived <span id="archivedCount"></span></button>
     <button type="button" class="sidebar-link" id="contactsNavButton">Contacts <span id="contactsDueCount"></span></button>
 
     <div class="sidebar-spacer"></div>
@@ -1158,6 +1159,9 @@ const statusMessage =
 
 let reports = [];
 let submissions = [];
+let archivedReportIds = new Set();
+let archivedSubmissionIds = new Set();
+let archiveReady = false;
 let activeFolder = "overview";
 let selectedReport = null;
 let selectedSection = 'introduction';
@@ -1542,8 +1546,24 @@ async function loadReports(){
 
 
   reports=data||[];
-  // Contacts are a read-only projection of the diagnostic reports plus
-  // separate internal metadata. A metadata outage never blocks reports.
+  // Archive membership is kept in a separate staging-only table. Never alter
+  // the underlying report or delivery status when showing/hiding records.
+  try {
+    const result = await supabase.from('brandpulse_archive_index')
+      .select('source_type,source_id');
+    if (result.error) throw result.error;
+    archivedReportIds = new Set((result.data||[])
+      .filter(x=>x.source_type==='report').map(x=>String(x.source_id)));
+    archivedSubmissionIds = new Set((result.data||[])
+      .filter(x=>x.source_type==='submission').map(x=>String(x.source_id)));
+    archiveReady = true;
+  } catch (e) {
+    archiveReady = false;
+    archivedReportIds = new Set();
+    archivedSubmissionIds = new Set();
+    console.warn('Archive unavailable; existing reports remain visible:', e.message);
+  }
+  // Only active reports belong in Contacts; archived history stays retained.
   rebuildContactRecords();
   await loadContactNotes();
   try{
@@ -1558,13 +1578,34 @@ async function loadReports(){
 
 function renderDiagnosticCards(){
   const heading=document.querySelector('.list-head h1');
-  const labels={overview:'Overview',new:'New Submissions',attention:'Needs Attention',scheduled:'Scheduled',sent:'Sent Reports',all:'All Submissions'};
+  const labels={overview:'Overview',new:'New Submissions',attention:'Needs Attention',scheduled:'Scheduled',sent:'Sent Reports',all:'All Submissions',archived:'Archived Test Records'};
   heading.textContent=labels[activeFolder];
-  const pending=submissions.filter(s=>s.status!=='completed');
+  const visibleReports=reports.filter(r=>!archivedReportIds.has(String(r.id)));
+  const archivedReports=reports.filter(r=>archivedReportIds.has(String(r.id)));
+  const pending=submissions.filter(s=>s.status!=='completed'&&!archivedSubmissionIds.has(String(s.id)));
+  const archivedPending=submissions.filter(s=>archivedSubmissionIds.has(String(s.id)));
+  const archiveCount=archivedReports.length+archivedPending.length;
+  document.getElementById('archivedCount').textContent=archiveReady&&archiveCount?`(${archiveCount})`:'';
+  if(activeFolder==='archived'){
+    diagnosticGrid.innerHTML=archiveReady
+      ? [...archivedPending.map(s=>`<div class="diagnostic-card">
+          <div class="card-company">${escapeHtml(s.payload?.client?.company||'Unnamed submission')}</div>
+          <div class="card-meta">${escapeHtml(s.payload?.client?.contact_name||'')}<br>${formatDate(s.created_at)}</div>
+          <span class="status-pill">Archived · ${escapeHtml(s.status||'submission')}</span>
+        </div>`),...archivedReports.map(r=>`<div class="diagnostic-card">
+          <div class="card-company">${escapeHtml(r.company_name)}</div>
+          <div class="card-meta">${escapeHtml(r.client_name||'')}<br>${escapeHtml(String(r.overall_score))}/100 · ${formatDate(r.created_at)}</div>
+          <span class="status-pill">Archived · ${escapeHtml(r.status)}</span>
+        </div>`)].join('')||'No archived records.'
+      : 'Archive index is unavailable. No records have been hidden; check the staging archive table.';
+    document.getElementById('attentionCount').textContent=pending.filter(s=>s.status==='failed').length?`(${pending.filter(s=>s.status==='failed').length})`:'';
+    document.querySelectorAll('[data-folder]').forEach(b=>b.classList.toggle('active',b.dataset.folder===activeFolder));
+    return;
+  }
   const attention=pending.filter(s=>s.status==='failed');
   document.getElementById('attentionCount').textContent=attention.length?`(${attention.length})`:'';
   document.querySelectorAll('[data-folder]').forEach(b=>b.classList.toggle('active',b.dataset.folder===activeFolder));
-  const filteredReports=reports.filter(r=>
+  const filteredReports=visibleReports.filter(r=>
     activeFolder==='all'||activeFolder==='overview'||
     (activeFolder==='new'&&r.status==='draft')||
     (activeFolder==='attention'&&r.status==='delivery_error')||
@@ -1612,6 +1653,7 @@ document.querySelectorAll('[data-folder]').forEach(button=>button.addEventListen
 function rebuildContactRecords(){
   const map = new Map();
   for (const r of reports) {
+    if (archivedReportIds.has(String(r.id))) continue;
     const email = String(r.client_email || '').trim().toLowerCase();
     if (!email) continue;
     const date = Date.parse(r.created_at || '') || 0;
