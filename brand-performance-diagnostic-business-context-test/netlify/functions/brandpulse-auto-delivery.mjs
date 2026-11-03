@@ -58,7 +58,8 @@ async function run() {
       const {html, attachment, logoAttachment,categoryAttachments}=render(row);
       const payload = {
         from:FROM,to:[row.client_email.trim()],
-        // No BCC during testing: Michael and Paul must not receive report copies.
+        // Directors receive private report copies in live delivery mode only.
+        ...(mode === 'live' ? {bcc:['michael@thec-lab.co.uk','paul@thec-lab.co.uk']} : {}),
         reply_to:'paul@thec-lab.co.uk',
         subject:`${mode === 'test' ? '[TEST] ' : ''}Your Brand Pulse report — ${String(row.company_name).slice(0,80)}`,
         html,attachments:[{filename:'brand-pulse-score.png',content:attachment,content_id:'brand-pulse-donut'},{filename:'creative-lab-logo.png',content:logoAttachment,content_id:'brand-pulse-logo'},...categoryAttachments]
