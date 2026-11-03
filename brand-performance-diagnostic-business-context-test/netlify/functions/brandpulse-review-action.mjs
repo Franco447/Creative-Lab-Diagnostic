@@ -1,6 +1,8 @@
 // Reviewer-only controls. All mutations and immediate sends are checked server-side.
 import { render, FROM } from './brandpulse-email-render.mjs';
 
+const DIRECTOR_EMAILS = ['franco@thec-lab.co.uk', 'michael@thec-lab.co.uk', 'paul@thec-lab.co.uk'];
+const directorBcc = clientEmail => DIRECTOR_EMAILS.filter(email => email !== String(clientEmail || '').trim().toLowerCase());
 const INTERNAL = new Set(['franco@thec-lab.co.uk','michael@thec-lab.co.uk','paul@thec-lab.co.uk']);
 const env = key => Netlify.env.get(key);
 const json = (status, payload) => new Response(JSON.stringify(payload), {status,headers:{'content-type':'application/json','cache-control':'no-store'}});
@@ -31,7 +33,7 @@ async function sendClaimed(root,key,resend,row,mode){
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(row.client_email||''))) throw Error('Invalid recipient email.');
   if(mode==='test'&&!isTest(row)) throw Error('Test mode permits marked internal reports only.');
   const {html,attachment,logoAttachment,categoryAttachments}=render(row);
-  const payload={from:FROM,to:[row.client_email.trim()],reply_to:'paul@thec-lab.co.uk',subject:`${mode==='test'?'[TEST] ':''}Your Brand Pulse report — ${String(row.company_name).slice(0,80)}`,html,attachments:[{filename:'brand-pulse-score.png',content:attachment,content_id:'brand-pulse-donut'},{filename:'creative-lab-logo.png',content:logoAttachment,content_id:'brand-pulse-logo'},...categoryAttachments]};
+  const payload={from:FROM,to:[row.client_email.trim()],bcc:directorBcc(row.client_email),reply_to:'paul@thec-lab.co.uk',subject:`${mode==='test'?'[TEST] ':''}Your Brand Pulse report — ${String(row.company_name).slice(0,80)}`,html,attachments:[{filename:'brand-pulse-score.png',content:attachment,content_id:'brand-pulse-donut'},{filename:'creative-lab-logo.png',content:logoAttachment,content_id:'brand-pulse-logo'},...categoryAttachments]};
   const resp=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${resend}`,'Content-Type':'application/json','Idempotency-Key':`brand-pulse-${mode}-${row.id}`},body:JSON.stringify(payload)});
   const data=await resp.json().catch(()=>null);
   if(!resp.ok||!data?.id)throw Error(`Resend ${resp.status}: ${data?.message||'no email id'}`);
