@@ -777,6 +777,33 @@ button{
     border-right:0;
   }
 }
+/* Isolated Contacts view; existing report screens remain unchanged. */
+.contacts-view{padding:28px;min-width:0}
+.contacts-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}
+.contacts-heading h1{font-size:26px;margin:0 0 5px}
+.contacts-heading p{font-size:12px;color:var(--grey);margin:0}
+#contactsSearch{min-height:42px;max-width:340px;width:100%;border:1px solid #ccc;border-radius:6px;padding:0 12px;background:#fff}
+.contacts-layout{display:grid;grid-template-columns:minmax(250px, .8fr) minmax(300px,1.4fr);gap:16px}
+.contacts-list,.contact-details{background:#fff;border:1px solid var(--line);border-radius:9px;min-height:340px;overflow:hidden}
+.contact-entry{display:block;width:100%;text-align:left;background:#fff;border:0;border-bottom:1px solid var(--line);padding:16px;cursor:pointer;color:inherit}
+.contact-entry:hover,.contact-entry.selected{background:#f1f0ec}
+.contact-entry strong{display:block;font-size:13px}
+.contact-entry small{display:block;color:var(--grey);font-size:11px;margin-top:5px;overflow-wrap:anywhere}
+.contact-details{padding:24px}
+.contact-details h2{margin:0 0 5px;font-size:21px}
+.contact-meta{font-size:12px;line-height:1.65;margin:14px 0 22px;overflow-wrap:anywhere}
+.contact-meta a{color:inherit}
+.contact-fields{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.contact-field{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:700}
+.contact-field input,.contact-field select,.contact-field textarea{width:100%;border:1px solid #ccc;border-radius:5px;padding:10px;font-weight:400;background:#fff;color:inherit}
+.contact-field.notes{grid-column:1/-1}
+.contact-field textarea{min-height:115px;resize:vertical}
+.contacts-notice{font-size:12px;color:var(--grey);min-height:18px}
+.contacts-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:17px}
+.contacts-footer button{border:0;background:#222;color:#fff;border-radius:5px;padding:12px 16px;font-size:12px;font-weight:700}
+.contacts-footer button:disabled{opacity:.5}
+@media(max-width:950px){.contacts-layout{grid-template-columns:1fr}}
+@media(max-width:760px){.contacts-heading{display:block}#contactsSearch{margin-top:15px;max-width:100%}.contact-fields{grid-template-columns:1fr}.contacts-view{padding:16px}}
 </style>
 </head>
 
@@ -837,6 +864,7 @@ button{
     <button type="button" class="sidebar-link" data-folder="scheduled">Scheduled</button>
     <button type="button" class="sidebar-link" data-folder="sent">Sent Reports</button>
     <button type="button" class="sidebar-link" data-folder="all">All Submissions</button>
+    <button type="button" class="sidebar-link" id="contactsNavButton">Contacts <span id="contactsDueCount"></span></button>
 
     <div class="sidebar-spacer"></div>
 
@@ -878,6 +906,18 @@ button{
 
     </section>
 
+
+    <section id="contactsView" class="contacts-view hidden" aria-label="Contacts directory">
+      <div class="contacts-heading">
+        <div><h1>Contacts</h1><p>Existing diagnostic contacts and internal follow-ups.</p></div>
+        <input id="contactsSearch" type="search" placeholder="Search name, company or email" aria-label="Search contacts">
+      </div>
+      <p id="contactsNotice" class="contacts-notice" role="status"></p>
+      <div class="contacts-layout">
+        <div id="contactsList" class="contacts-list"></div>
+        <div id="contactDetails" class="contact-details"><p>Select a contact to see their details.</p></div>
+      </div>
+    </section>
 
     <section id="reviewView" class="review-view hidden">
 
@@ -1123,6 +1163,19 @@ let selectedReport = null;
 let selectedSection = 'introduction';
 let countdownTimer = null;
 let previewMode = 'desktop';
+// Contacts data is derived from existing reports. Only internal relationship
+// metadata is stored separately, so no client details are duplicated.
+let contactNotes = new Map();
+let contactRecords = [];
+let selectedContactKey = null;
+let contactsMetadataAvailable = true;
+const contactsView = document.getElementById('contactsView');
+const contactsNavButton = document.getElementById('contactsNavButton');
+const contactsDueCount = document.getElementById('contactsDueCount');
+const contactsNotice = document.getElementById('contactsNotice');
+const contactsList = document.getElementById('contactsList');
+const contactDetails = document.getElementById('contactDetails');
+const contactsSearch = document.getElementById('contactsSearch');
 
 
 const sections = [
@@ -1357,6 +1410,7 @@ async function showApp(user){
     user.email || '';
 
   await loadReports();
+  if (!contactsView.classList.contains('hidden')) renderContacts();
 }
 
 
@@ -1428,6 +1482,7 @@ signOutButton.addEventListener(
 
     selectedReport=null;
 
+    contactsView.classList.add('hidden');
     showLogin();
   }
 );
@@ -1487,11 +1542,16 @@ async function loadReports(){
 
 
   reports=data||[];
+  // Contacts are a read-only projection of the diagnostic reports plus
+  // separate internal metadata. A metadata outage never blocks reports.
+  rebuildContactRecords();
+  await loadContactNotes();
   try{
     const {data:{session}}=await supabase.auth.getSession();
     const resp=await fetch('/.netlify/functions/brandpulse-recovery',{headers:{Authorization:`Bearer ${session.access_token}`}});
     if(resp.ok)submissions=(await resp.json()).submissions||[];
   }catch(e){console.error('Cannot load submission queue',e);}
+  if (!contactsView.classList.contains('hidden')) renderContacts();
   renderDiagnosticCards();
 }
 
@@ -1538,11 +1598,157 @@ function renderDiagnosticCards(){
   }));
 }
 document.querySelectorAll('[data-folder]').forEach(button=>button.addEventListener('click',()=>{
-  activeFolder=button.dataset.folder;reviewView.classList.add('hidden');listView.classList.remove('hidden');renderDiagnosticCards();
+  activeFolder=button.dataset.folder;
+  contactsView.classList.add('hidden');
+  contactsNavButton.classList.remove('active');
+  reviewView.classList.add('hidden');
+  listView.classList.remove('hidden');
+  renderDiagnosticCards();
 }));
 
 
+// CONTACTS: independent directory built from existing diagnostic_reports.
+// No changes to report status or the email pipeline are made by this feature.
+function rebuildContactRecords(){
+  const map = new Map();
+  for (const r of reports) {
+    const email = String(r.client_email || '').trim().toLowerCase();
+    if (!email) continue;
+    const date = Date.parse(r.created_at || '') || 0;
+    const prev = map.get(email);
+    if (!prev || date > prev.date) {
+      map.set(email, { key:email, date, report:r,
+        count:prev ? prev.count + 1 : 1 });
+    } else prev.count++;
+  }
+  contactRecords = [...map.values()].sort((a,b)=>b.date-a.date);
+}
+function threeMonthFollowup(dateValue){
+  const d = new Date(dateValue || Date.now());
+  if (isNaN(d.getTime())) return '';
+  // Preserve day-of-month where possible instead of allowing month overflow.
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth()+3);
+  const last = new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+  d.setDate(Math.min(day,last));
+  return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+}
+async function loadContactNotes(){
+  try {
+    const result = await supabase.from('brandpulse_contact_notes')
+      .select('contact_email,relationship_status,owner,notes,follow_up_date');
+    if (result.error) throw result.error;
+    contactNotes = new Map((result.data||[]).map(r=>[r.contact_email.toLowerCase(),r]));
+    contactsMetadataAvailable = true;
+    contactsNotice.textContent = '';
+  } catch (e) {
+    contactsMetadataAvailable = false;
+    contactsNotice.textContent = 'Contacts are available to view, but internal notes cannot be loaded until the staging Contacts table is installed.';
+    console.warn('Contact metadata unavailable:', e.code || e.message);
+  }
+  const today = new Date().toISOString().slice(0,10);
+  const due = [...contactNotes.values()].filter(r=>r.follow_up_date && r.follow_up_date<=today).length;
+  contactsDueCount.textContent=due?`(${due} due)`:'';
+}
+function renderContacts(){
+  if (contactsView.classList.contains('hidden')) return;
+  const q=contactsSearch.value.trim().toLowerCase();
+  const matched=contactRecords.filter(c=>{
+    const r=c.report;
+    return [r.company_name,r.client_name,r.client_email].some(v=>String(v||'').toLowerCase().includes(q));
+  });
+  contactsList.innerHTML=matched.length?matched.map(c=>{
+    const r=c.report;
+    const meta=contactNotes.get(c.key);
+    const due=meta?.follow_up_date && meta.follow_up_date<=new Date().toISOString().slice(0,10);
+    return `<button type="button" class="contact-entry ${selectedContactKey===c.key?'selected':''}" data-contact="${escapeHtml(c.key)}">
+      <strong>${escapeHtml(r.company_name||'Company not supplied')}</strong>
+      <small>${escapeHtml(r.client_name||'Contact not supplied')} · ${escapeHtml(r.client_email)}</small>
+      <small>${escapeHtml(meta?.relationship_status||'New')} · ${c.count} report${c.count===1?'':'s'}${due?' · Follow-up due':''}</small>
+    </button>`;
+  }).join(''):'<p style="padding:18px;font-size:12px">No matching contacts.</p>';
+  contactsList.querySelectorAll('[data-contact]').forEach(b=>b.addEventListener('click',()=>{
+    selectedContactKey=b.dataset.contact;
+    renderContacts();
+  }));
+  const chosen=contactRecords.find(c=>c.key===selectedContactKey);
+  if (!chosen) {
+    contactDetails.innerHTML='<p>Select a contact to see their details.</p>';
+    return;
+  }
+  const r=chosen.report;
+  const n=contactNotes.get(chosen.key)||{};
+  const website=String(r.website||'');
+  const safeWebsite=/^https?:\/\//i.test(website)?website:'';
+  contactDetails.innerHTML=`<h2>${escapeHtml(r.client_name||'Contact')}</h2>
+    <p style="margin:0;font-size:13px">${escapeHtml(r.company_name||'')}</p>
+    <div class="contact-meta">
+      ${escapeHtml(r.client_position||'')}<br>
+      <a href="mailto:${encodeURIComponent(chosen.key)}">${escapeHtml(chosen.key)}</a><br>
+      ${escapeHtml(r.client_mobile||'')}<br>
+      ${safeWebsite?`<a href="${escapeHtml(safeWebsite)}" target="_blank" rel="noopener noreferrer">${escapeHtml(safeWebsite)}</a>`:escapeHtml(website)}<br>
+      Last diagnostic: ${escapeHtml(formatDate(r.created_at))} · ${escapeHtml(String(r.overall_score))}/100
+      · ${chosen.count} report${chosen.count===1?'':'s'}
+    </div>
+    <form id="contactNotesForm">
+      <div class="contact-fields">
+        <label class="contact-field">Relationship status
+          <select name="relationship_status">
+            ${['New','Contacted','In discussion','Not right now','Client','Do not contact'].map(x=>`<option value="${x}" ${n.relationship_status===x?'selected':''}>${x}</option>`).join('')}
+          </select>
+        </label>
+        <label class="contact-field">Internal owner<input name="owner" maxlength="120" value="${escapeHtml(n.owner||'')}" placeholder="e.g. Paul"></label>
+        <label class="contact-field">Follow-up reminder (internal only)
+          <input type="date" name="follow_up_date" value="${escapeHtml(n.follow_up_date||threeMonthFollowup(r.created_at))}">
+        </label>
+        <label class="contact-field notes">Internal notes
+          <textarea name="notes" maxlength="10000" placeholder="Previous conversations, next steps, context…">${escapeHtml(n.notes||'')}</textarea>
+        </label>
+      </div>
+      <div class="contacts-footer"><span id="contactSaveResult" class="contacts-notice" role="status"></span>
+        <button type="submit" ${contactsMetadataAvailable?'':'disabled'}>Save contact notes</button>
+      </div>
+    </form>`;
+  const form=document.getElementById('contactNotesForm');
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    if (!contactsMetadataAvailable) return;
+    const fd=new FormData(form);
+    const row={contact_email:chosen.key,
+      relationship_status:String(fd.get('relationship_status')||'New'),
+      owner:String(fd.get('owner')||'').trim(),
+      notes:String(fd.get('notes')||'').trim(),
+      follow_up_date:String(fd.get('follow_up_date')||'')||null,
+      updated_at:new Date().toISOString()};
+    const button=form.querySelector('button[type=submit]');
+    const message=document.getElementById('contactSaveResult');
+    button.disabled=true;message.textContent='Saving…';
+    try {
+      const {error}=await supabase.from('brandpulse_contact_notes').upsert(row,{onConflict:'contact_email'});
+      if(error) throw error;
+      contactNotes.set(chosen.key,row);
+      message.textContent='Saved';
+      const today=new Date().toISOString().slice(0,10);
+      const due=[...contactNotes.values()].filter(x=>x.follow_up_date && x.follow_up_date<=today).length;
+      contactsDueCount.textContent=due?`(${due} due)`:'';
+    } catch(e) {message.textContent=`Could not save: ${e.message||'Unknown error'}`;}
+    finally {button.disabled=false;}
+  });
+}
+contactsNavButton.addEventListener('click',()=>{
+  reviewView.classList.add('hidden');
+  listView.classList.add('hidden');
+  contactsView.classList.remove('hidden');
+  document.querySelectorAll('[data-folder]').forEach(b=>b.classList.remove('active'));
+  contactsNavButton.classList.add('active');
+  renderContacts();
+});
+contactsSearch.addEventListener('input',renderContacts);
+
 function openReport(report){
+  contactsView.classList.add('hidden');
+  contactsNavButton.classList.remove('active');
   window.brandPulseSelectedReportId = report.id;
 
   selectedReport=
