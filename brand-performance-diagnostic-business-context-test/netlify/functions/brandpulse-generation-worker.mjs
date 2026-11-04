@@ -34,8 +34,16 @@ export default async()=>{
     const result=await request({action:'poll',stage:'writing',response_id:row.response_id});
     if(result.status==='processing'){await update({status:'writing',response_id:result.response_id});return;}
     if(!result.report_id)throw Error('Writing completed without a saved report ID');
-    // Preserve submission-time schedule: rebase using the existing UK scheduling RPC.
-    const scheduled=await j(await fetch(`${base}/rpc/brandpulse_next_delivery`,{method:'POST',headers,body:JSON.stringify({submitted:row.created_at})}));
+    // Keep the original submission-time schedule if it is still in the future.
+    // Regenerations can finish after that deadline: never write an expired send time.
+    const nextDelivery=async submitted=>j(await fetch(`${base}/rpc/brandpulse_next_delivery`,{method:'POST',headers,body:JSON.stringify({submitted})}));
+    const originalSchedule=await nextDelivery(row.created_at);
+    const originalTime=Date.parse(originalSchedule);
+    const scheduled=Number.isFinite(originalTime)&&originalTime>Date.now()
+     ?originalSchedule
+     :await nextDelivery(new Date().toISOString());
+    const scheduledTime=Date.parse(scheduled);
+    if(!Number.isFinite(scheduledTime)||scheduledTime<=Date.now())throw Error('Generated report schedule was not in the future; delivery remains unconfirmed');
     const fix=await j(await fetch(`${base}/diagnostic_reports?id=eq.${result.report_id}&status=eq.draft`,{method:'PATCH',headers:{...headers,Prefer:'return=representation'},body:JSON.stringify({scheduled_send_at:scheduled,delivery_enabled:true})}));
     if(!fix?.length)throw Error('Generated report schedule could not be aligned; check report before sending');
     await update({status:'completed',report_id:result.report_id,needs_attention:false,last_error:null,response_id:null});return;
