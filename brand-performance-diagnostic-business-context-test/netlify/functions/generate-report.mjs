@@ -612,6 +612,48 @@ function responseOutputText(data) {
     .map(c => c.text || "").join("\n").trim();
 }
 
+// A company research briefing must be substantive, not merely a status marker.
+// The unavailable marker only counts as failure when it is a standalone result.
+function assessResearchBriefing(value) {
+  const text = String(value || "").trim();
+  if (!text) return { ok: false, reason: "empty_result" };
+  if (/^RESEARCH_UNAVAILABLE(?:[\s.:;-].*)?$/is.test(text)) {
+    return { ok: false, reason: "research_unavailable" };
+  }
+  if (text.length < 120) return { ok: false, reason: "insufficient_briefing" };
+  return { ok: true, briefing: text.slice(0, 5500) };
+}
+
+// One additional, bounded search is allowed only when official-site research
+// couldn't establish a company profile. This is not permission to invent one.
+async function beginResearchFallback(apiKey, client, initialReason) {
+  const domain = normaliseDomain(client.website);
+  const instruction = `The first attempt to research ${client.company} at ${client.website} was inconclusive.
+Try once more to establish its identity and factual business context. Search for the exact
+company name and its official site (including the non-www version of ${domain}).
+You may consult reputable independent sources to corroborate identity and basic business
+facts. Do not confuse similarly named companies or infer details from competitors.
+Use verified facts only: what the company offers, who it serves, products/services,
+and stated positioning. Separate the company's claims from independent evidence.
+Keep the briefing under 450 words. Do not write a diagnostic report.
+If you cannot confidently match credible sources to this exact company, reply with
+RESEARCH_UNAVAILABLE as the entire response. Never invent a company profile.`;
+  const job = await openaiRequest(apiKey, {
+    model: Netlify.env.get("OPENAI_MODEL") || "gpt-5.1",
+    background: true,
+    tools: [{ type: "web_search", search_context_size: "medium" }],
+    metadata: { bp_research_fallback: "1" },
+    input: instruction
+  });
+  if (!job.id) throw new Error("Fallback research did not return a job ID.");
+  console.info("Brand Pulse research fallback started", {
+    response_id: job.id, reason: initialReason
+  });
+  return jsonResponse(202, {
+    status: "processing", stage: "research", response_id: job.id
+  });
+}
+
 async function openaiRequest(apiKey, payload) {
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -680,7 +722,8 @@ Search or inspect this domain only. Return a short factual briefing (maximum 450
 covering what it offers, whom it serves, stated positioning, products/services,
 and claims supported by the official site. Distinguish company claims from proof.
 Do not invent facts. If the site cannot be researched reliably, clearly state
-RESEARCH_UNAVAILABLE and do not invent a profile. Do not write a diagnostic report.`;
+RESEARCH_UNAVAILABLE as the entire response, and do not invent a profile.
+Do not write a diagnostic report.`;
       const job = await openaiRequest(apiKey, {
         model: Netlify.env.get("OPENAI_MODEL") || "gpt-5.1",
         background: true,
@@ -729,10 +772,24 @@ RESEARCH_UNAVAILABLE and do not invent a profile. Do not write a diagnostic repo
       }
       if (body.stage === "research") {
         const briefing = responseOutputText(data);
-        if (!briefing || briefing.includes("RESEARCH_UNAVAILABLE")) {
-          return jsonResponse(422, {error:"We couldn't verify enough company information from this website to produce a researched report."});
+        const assessment = assessResearchBriefing(briefing);
+        if (!assessment.ok) {
+          // The fallback response is tagged, so we can never loop indefinitely.
+          const alreadyRetried = data?.metadata?.bp_research_fallback === "1";
+          console.warn("Brand Pulse research briefing rejected", {
+            response_id: id, reason: assessment.reason,
+            fallback: alreadyRetried
+          });
+          if (!alreadyRetried) {
+            return await beginResearchFallback(apiKey, client, assessment.reason);
+          }
+          return jsonResponse(422, {
+            error: "We couldn't verify enough company information to produce a researched report. The official website and one alternative source check were unsuccessful. No report has been saved."
+          });
         }
-        return jsonResponse(200,{status:"research_complete",stage:"research",research:briefing.slice(0,5500)});
+        return jsonResponse(200, {
+          status:"research_complete", stage:"research", research:assessment.briefing
+        });
       }
       return await finishReport(data, client, diagnostic);
     }
