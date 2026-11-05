@@ -25,7 +25,7 @@ export default async()=>{
    if(row.stage==='research'){
     if(!row.response_id){const result=await request({action:'research'});await update({status:'researching',response_id:result.response_id});return;}
     const result=await request({action:'poll',stage:'research',response_id:row.response_id});
-    if(result.status==='processing'){await update({status:'researching'});return;}
+    if(result.status==='processing'){await update({status:'researching',response_id:result.response_id||row.response_id});return;}
     if(result.status!=='research_complete'||!result.research)throw Error('Research did not return a briefing');
     await update({status:'writing',stage:'writing',research_briefing:result.research,response_id:null,attempts:0});return;
    }
