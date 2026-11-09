@@ -200,18 +200,6 @@ async function saveDraftToSupabase({
 
   if (!response.ok) {
 
-    // Temporary staging diagnostic: no keys, tokens, client data or payloads.
-    console.error("Brand Pulse Supabase draft save rejected", {
-      http_status: response.status,
-      postgres_code: typeof data?.code === "string" ? data.code.slice(0, 24) : null,
-      key_format: supabaseSecret.startsWith("sb_secret_")
-        ? "supabase_secret"
-        : supabaseSecret.startsWith("eyJ")
-          ? "legacy_jwt"
-          : "other",
-      authorization_sent: true
-    });
-
     const message =
       data?.message ||
       data?.error ||
@@ -276,6 +264,7 @@ async function saveDraftToSupabase({
 // Reject structurally valid JSON containing broken or missing client-facing text.
 // This gate does not assess strategic judgement; reviewers still assess the report.
 const REPORT_LIMITS = {
+  our_verdict: 20,
   score_meaning: 90, stands_out: 85,
   strategic_headline: 14, consumer_headline: 14, market_headline: 14,
   growth_headline: 14, commercial_headline: 14,
@@ -284,6 +273,7 @@ const REPORT_LIMITS = {
   focus_next_intro: 90, now: 65, next: 65, nurture: 65
 };
 const REPORT_MIN_WORDS = {
+  our_verdict: 8,
   score_meaning: 20, stands_out: 20,
   strategic_headline: 2, consumer_headline: 2, market_headline: 2,
   growth_headline: 2, commercial_headline: 2,
@@ -300,6 +290,10 @@ const REPORT_SCHEMA = {
                       false,
 
                     properties: {
+
+                      our_verdict: {
+                        type: "string"
+                      },
 
                       score_meaning: {
                         type: "string"
@@ -368,6 +362,7 @@ const REPORT_SCHEMA = {
                     },
 
                     required: [
+                      "our_verdict",
                       "score_meaning",
                       "stands_out",
                       "strategic_headline",
@@ -612,48 +607,6 @@ function responseOutputText(data) {
     .map(c => c.text || "").join("\n").trim();
 }
 
-// A company research briefing must be substantive, not merely a status marker.
-// The unavailable marker only counts as failure when it is a standalone result.
-function assessResearchBriefing(value) {
-  const text = String(value || "").trim();
-  if (!text) return { ok: false, reason: "empty_result" };
-  if (/^RESEARCH_UNAVAILABLE(?:[\s.:;-].*)?$/is.test(text)) {
-    return { ok: false, reason: "research_unavailable" };
-  }
-  if (text.length < 120) return { ok: false, reason: "insufficient_briefing" };
-  return { ok: true, briefing: text.slice(0, 5500) };
-}
-
-// One additional, bounded search is allowed only when official-site research
-// couldn't establish a company profile. This is not permission to invent one.
-async function beginResearchFallback(apiKey, client, initialReason) {
-  const domain = normaliseDomain(client.website);
-  const instruction = `The first attempt to research ${client.company} at ${client.website} was inconclusive.
-Try once more to establish its identity and factual business context. Search for the exact
-company name and its official site (including the non-www version of ${domain}).
-You may consult reputable independent sources to corroborate identity and basic business
-facts. Do not confuse similarly named companies or infer details from competitors.
-Use verified facts only: what the company offers, who it serves, products/services,
-and stated positioning. Separate the company's claims from independent evidence.
-Keep the briefing under 450 words. Do not write a diagnostic report.
-If you cannot confidently match credible sources to this exact company, reply with
-RESEARCH_UNAVAILABLE as the entire response. Never invent a company profile.`;
-  const job = await openaiRequest(apiKey, {
-    model: Netlify.env.get("OPENAI_MODEL") || "gpt-5.1",
-    background: true,
-    tools: [{ type: "web_search", search_context_size: "medium" }],
-    metadata: { bp_research_fallback: "1" },
-    input: instruction
-  });
-  if (!job.id) throw new Error("Fallback research did not return a job ID.");
-  console.info("Brand Pulse research fallback started", {
-    response_id: job.id, reason: initialReason
-  });
-  return jsonResponse(202, {
-    status: "processing", stage: "research", response_id: job.id
-  });
-}
-
 async function openaiRequest(apiKey, payload) {
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -722,8 +675,7 @@ Search or inspect this domain only. Return a short factual briefing (maximum 450
 covering what it offers, whom it serves, stated positioning, products/services,
 and claims supported by the official site. Distinguish company claims from proof.
 Do not invent facts. If the site cannot be researched reliably, clearly state
-RESEARCH_UNAVAILABLE as the entire response, and do not invent a profile.
-Do not write a diagnostic report.`;
+RESEARCH_UNAVAILABLE and do not invent a profile. Do not write a diagnostic report.`;
       const job = await openaiRequest(apiKey, {
         model: Netlify.env.get("OPENAI_MODEL") || "gpt-5.1",
         background: true,
@@ -772,24 +724,10 @@ Do not write a diagnostic report.`;
       }
       if (body.stage === "research") {
         const briefing = responseOutputText(data);
-        const assessment = assessResearchBriefing(briefing);
-        if (!assessment.ok) {
-          // The fallback response is tagged, so we can never loop indefinitely.
-          const alreadyRetried = data?.metadata?.bp_research_fallback === "1";
-          console.warn("Brand Pulse research briefing rejected", {
-            response_id: id, reason: assessment.reason,
-            fallback: alreadyRetried
-          });
-          if (!alreadyRetried) {
-            return await beginResearchFallback(apiKey, client, assessment.reason);
-          }
-          return jsonResponse(422, {
-            error: "We couldn't verify enough company information to produce a researched report. The official website and one alternative source check were unsuccessful. No report has been saved."
-          });
+        if (!briefing || briefing.includes("RESEARCH_UNAVAILABLE")) {
+          return jsonResponse(422, {error:"We couldn't verify enough company information from this website to produce a researched report."});
         }
-        return jsonResponse(200, {
-          status:"research_complete", stage:"research", research:assessment.briefing
-        });
+        return jsonResponse(200,{status:"research_complete",stage:"research",research:briefing.slice(0,5500)});
       }
       return await finishReport(data, client, diagnostic);
     }
@@ -1057,6 +995,21 @@ Two businesses with the same score should be capable of receiving materially dif
 
 REPORT STRUCTURE
 
+
+OUR VERDICT — ADDITIONAL OPENING SECTION
+
+Generate an additional JSON field named our_verdict. It appears in the email as a standalone OUR VERDICT section immediately before WHAT YOUR SCORE MEANS. Do not alter any existing report section or its intended role.
+
+STAGE 1 — STRATEGIC REASONING (internal only)
+Study the 20 answers, five area scores, overall diagnosis and verified business context. Identify the single most consequential tension, weakness or opportunity for this business. If a business is performing consistently well or no defensible contradiction exists, do not invent a negative contrast. Choose the observation with the greatest genuine strategic importance, rather than the most dramatic wording.
+Treat diagnostic scores as self-reported confidence, not proof of market outcomes. Check the selected conclusion against available evidence. Never assert a loss of customers, weak sales, ineffective channels or commercial performance unless established by the supplied material.
+
+STAGE 2 — EDITORIAL JUDGEMENT (internal only)
+Express that conclusion in a single direct, memorable observation of 8–20 words. Address the client directly; do not include the company or brand name. Use natural British English, a confident but constructive tone, and varied sentence structures. Do not force a 'you have X, but Y' construction. No humour, metaphors, generic consultancy language or recommendations. Do not add claims in the pursuit of punchier writing.
+
+STAGE 3 — SILENT CHECK
+Confirm the verdict is specific to the diagnostic and defensible against the answers. Preserve the difference between uncertainty and proven results without sounding bureaucratic. Avoid repetition of the existing section headlines. Check the 8–20-word limit, absence of brand/company names, and direct client address. Do not use em dashes.
+Return our_verdict as one plain-text string, alongside every existing JSON field. The remaining JSON fields retain their current content requirements.
 
 score_meaning
 
