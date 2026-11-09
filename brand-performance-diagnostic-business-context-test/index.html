@@ -328,7 +328,8 @@
     .thankyou{
       background:var(--sage);
       min-height:100vh;
-      padding:90px 38px 50px;
+      min-height:100svh;
+      padding:clamp(130px,22vh,205px) 28px 54px;
       text-align:center;
       display:flex;
       flex-direction:column;
@@ -336,31 +337,29 @@
     }
 
     .thankyou h1{
-      font-size:42px;
-      line-height:1;
-      margin:0 0 34px;
+      font-size:35px;
+      line-height:1.02;
+      font-weight:900;
+      letter-spacing:-.035em;
+      margin:0 0 35px;
     }
 
     .thankyou p{
-      font-size:23px;
-      line-height:1.35;
-      margin-bottom:26px;
+      font-size:17px;
+      line-height:1.43;
+      margin:0 0 26px;
       font-weight:300;
+    }
+
+    .thankyou p + p{
+      margin-top:4px;
     }
 
     .thankyou img{
       width:150px;
       max-width:52%;
+      height:auto;
       margin-top:auto;
-    }
-
-    .restart{
-      margin-top:18px;
-      background:transparent;
-      border:0;
-      text-decoration:underline;
-      color:var(--charcoal);
-      cursor:pointer;
     }
 
     .email-preview{
@@ -1877,73 +1876,21 @@
     app.innerHTML=`
       <div class="thankyou">
 
-        <h1>
-          Thank You
-        </h1>
+        <h1>Thank you.<br>Your scores are in !</h1>
 
+        <p>We will now be turning your answers into a personalised Brand Pulse report, with fresh insights into your brand's growth potential.</p>
 
-        <p>
-          Thank you. We have received your diagnostic and will email your personalised report in line with our delivery schedule.
-        </p>
+        <p>Look out for your report in your inbox within the next 24 hours.</p>
 
-
-        <p style="
-          font-size:16px;
-          line-height:1.45;
-          font-weight:400;
-        ">
-          If you don’t see it in your inbox, please check your junk folder.
-        </p>
-
+        <p>And if it hasn't landed, take a quick peek in your junk folder. Sometimes good things end up there!</p>
 
         <img
           src="assets/Logo.png"
           alt="The Creative Lab"
         >
 
-
-        <button
-          class="restart"
-          id="restart"
-        >
-          Restart Diagnostic
-        </button>
-
       </div>
     `;
-
-
-    document
-      .getElementById(
-        'restart'
-      )
-      .onclick=()=>{
-
-        state='splash';
-
-        idx=0;
-
-        answers=
-          Array(20).fill(null);
-
-        email='';
-
-        submissionToken=null;
-
-        brand='';
-
-
-        about={
-          name:'',
-          position:'',
-          company:'',
-          website:'',
-          mobile:''
-        };
-
-
-        render();
-      };
   }
 
 
