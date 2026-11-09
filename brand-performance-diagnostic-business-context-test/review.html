@@ -1188,6 +1188,32 @@ let selectedReport = null;
 let selectedSection = 'introduction';
 let countdownTimer = null;
 let previewMode = 'desktop';
+let approvedClosingCopy = null;
+let closingCopyError = 'Loading approved closing copy…';
+// Read approved fixed wording from the same module used to render real emails.
+// Never silently fall back to hard-coded old text if the shared source is unavailable.
+async function loadApprovedClosingCopy(){
+  try {
+    const response = await fetch('/.netlify/functions/brandpulse-email-copy', { cache:'no-store' });
+    if (!response.ok) throw new Error('HTTP '+response.status);
+    const data = await response.json();
+    if (!Array.isArray(data.paragraphs) || data.paragraphs.length !== 3 ||
+        data.paragraphs.some(p=>typeof p !== 'string' || !p.trim())) {
+      throw new Error('Invalid approved copy');
+    }
+    approvedClosingCopy = data.paragraphs;
+    closingCopyError = '';
+  } catch (error) {
+    approvedClosingCopy = null;
+    closingCopyError = 'Approved closing copy unavailable. Refresh the page; do not rely on this preview until it loads.';
+    console.error('Cannot load approved closing copy', error);
+  }
+  if (selectedReport) {
+    renderPreview();
+    if (selectedSection === 'closing') renderEditor();
+  }
+}
+
 // Contacts data is derived from existing reports. Only internal relationship
 // metadata is stored separately, so no client details are duplicated.
 let contactNotes = new Map();
@@ -2042,25 +2068,9 @@ function renderEditor(){
         Closing
       </div>
 
-      <p style="
-        font-size:13px;
-        line-height:1.6;
-        color:#555;
-      ">
-        We hope this report has given you a clearer picture of where your brand stands today and where the opportunities for growth might lie.
-      </p>
-
-      <p style="
-        font-size:13px;
-        line-height:1.6;
-        color:#555;
-      ">
-        Once you've had a chance to look through it, we'd love to spend 30 minutes talking you through the findings and exploring what you'd prioritise to move your business forward.
-      </p>
-
-      <p style="font-size:13px;line-height:1.6;color:#555;">
-        Just click below to find a time that works for you.
-      </p>
+      ${approvedClosingCopy
+        ? approvedClosingCopy.map(text=>`<p style="font-size:13px;line-height:1.6;color:#555;">${escapeHtml(text)}</p>`).join('')
+        : `<p style="font-size:13px;line-height:1.6;color:#9e3b3b;">${escapeHtml(closingCopyError)}</p>`} 
 
       <p style="font-size:13px;line-height:1.6;color:#555;">
         Look forward to speaking soon.
@@ -2435,17 +2445,9 @@ function renderPreview(){
       <div class="divider"></div>
 
 
-      <p>
-        We hope this report has given you a clearer picture of where your brand stands today and where the opportunities for growth might lie.
-      </p>
-
-      <p>
-        Once you've had a chance to look through it, we'd love to spend 30 minutes talking you through the findings and exploring what you'd prioritise to move your business forward.
-      </p>
-
-      <p>
-        Just click below to find a time that works for you.
-      </p>
+      ${approvedClosingCopy
+        ? approvedClosingCopy.map(text=>`<p>${escapeHtml(text)}</p>`).join('')
+        : `<p style="color:#9e3b3b;">${escapeHtml(closingCopyError)}</p>`} 
 
       <a class="book-call" href="https://calendly.com/paultcl/30min" target="_blank" rel="noopener noreferrer" style="display:block;text-decoration:none;">
         Book a Call
@@ -2813,6 +2815,7 @@ supabase.auth
   );
 
 
+loadApprovedClosingCopy();
 checkSession();
 
 </script>
