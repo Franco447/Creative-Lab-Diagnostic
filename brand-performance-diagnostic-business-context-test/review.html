@@ -613,6 +613,13 @@ button{
   text-transform:uppercase;
 }
 
+/* OUR VERDICT statement only — approved 18px bold treatment. */
+.email .verdict-statement{
+  font-size:18px;
+  font-weight:700;
+  line-height:1.35;
+}
+
 /* Brand Pulse score panel — XD reference */
 .score-panel{margin:21px 0 27px;padding:15px 20px;border-radius:13px;background:var(--sage);display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:174px}
 .score-panel-title{flex:1;min-width:0;color:#222;font-size:clamp(20px,2.4vw,27px);line-height:1.09;letter-spacing:-.035em}
@@ -1235,6 +1242,18 @@ const sections = [
     id:'introduction',
     label:'Introduction',
     fields:[]
+  },
+
+  {
+    id:'verdict',
+    label:'Our Verdict',
+    fields:[
+      {
+        key:'our_verdict',
+        label:'Our verdict',
+        headline:true
+      }
+    ]
   },
 
   {
@@ -2317,7 +2336,7 @@ function renderPreview(){
         OUR VERDICT
       </h3>
 
-      <p>
+      <p class="verdict-statement">
         ${escapeHtml(r.our_verdict.trim())}
       </p>
 
