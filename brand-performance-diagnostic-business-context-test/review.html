@@ -2312,6 +2312,17 @@ function renderPreview(){
       </div>
 
 
+      ${typeof r.our_verdict === 'string' && r.our_verdict.trim() ? `
+      <h3>
+        OUR VERDICT
+      </h3>
+
+      <p>
+        ${escapeHtml(r.our_verdict.trim())}
+      </p>
+
+      ` : ''}
+
       <h3>
         What Your Score Means
       </h3>
