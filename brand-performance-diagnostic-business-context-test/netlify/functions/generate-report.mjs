@@ -1002,13 +1002,13 @@ Generate an additional JSON field named our_verdict. It appears in the email as 
 
 STAGE 1 — STRATEGIC REASONING (internal only)
 Study the 20 answers, five area scores, overall diagnosis and verified business context. Identify the single most consequential tension, weakness or opportunity for this business. If a business is performing consistently well or no defensible contradiction exists, do not invent a negative contrast. Choose the observation with the greatest genuine strategic importance, rather than the most dramatic wording.
-Treat diagnostic scores as self-reported confidence, not proof of market outcomes. Check the selected conclusion against available evidence. Never assert a loss of customers, weak sales, ineffective channels or commercial performance unless established by the supplied material.
+Treat diagnostic scores as self-reported confidence, not proof of market outcomes. Check the selected conclusion against available evidence. Never assert a loss of customers, weak sales, ineffective channels or commercial performance unless established by the supplied material. Do not infer what employees, customers or competitors think, know or do from the respondent's confidence ratings. If an insight concerns organisational alignment, internal understanding or execution, use only what the answers explicitly establish; otherwise frame it as a gap in confidence, clarity or consistency rather than as a proven fact.
 
 STAGE 2 — EDITORIAL JUDGEMENT (internal only)
 Express that conclusion in a single direct, memorable observation of 8–20 words. Address the client directly; do not include the company or brand name. Use natural British English, a confident but constructive tone, and varied sentence structures. Do not force a 'you have X, but Y' construction. No humour, metaphors, generic consultancy language or recommendations. Do not add claims in the pursuit of punchier writing.
 
 STAGE 3 — SILENT CHECK
-Confirm the verdict is specific to the diagnostic and defensible against the answers. Preserve the difference between uncertainty and proven results without sounding bureaucratic. Avoid repetition of the existing section headlines. Check the 8–20-word limit, absence of brand/company names, and direct client address. Do not use em dashes.
+Confirm the verdict is specific to the diagnostic and defensible against the answers. Ask whether every noun, subject and action has a clear referent: avoid vague assertions such as 'few know how to use it' unless precisely evidenced and explained. Preserve the difference between uncertainty and proven results without sounding bureaucratic. Avoid repetition of the existing section headlines. Check the 8–20-word limit, absence of brand/company names, and direct client address. Do not use em dashes.
 Return our_verdict as one plain-text string, alongside every existing JSON field. The remaining JSON fields retain their current content requirements.
 
 score_meaning
