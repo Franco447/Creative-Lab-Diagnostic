@@ -1735,7 +1735,6 @@ document.querySelectorAll('[data-folder]').forEach(button=>button.addEventListen
 function rebuildContactRecords(){
   const map = new Map();
   for (const r of reports) {
-    if (archivedReportIds.has(String(r.id))) continue;
     const email = String(r.client_email || '').trim().toLowerCase();
     if (!email) continue;
     const date = Date.parse(r.created_at || '') || 0;
