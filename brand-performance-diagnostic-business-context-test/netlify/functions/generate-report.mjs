@@ -620,6 +620,32 @@ async function openaiRequest(apiKey, payload) {
   return data;
 }
 
+// One bounded fallback when the official site cannot be researched. The fallback
+// may only use another public source that explicitly links to the submitted site.
+async function startVerifiedResearchFallback(apiKey, client) {
+  const domain = normaliseDomain(client.website);
+  const instruction = `The official website ${client.website} for ${client.company} could not be researched reliably.
+Find the company's own public business profile (for example, its official LinkedIn company page).
+Use a profile ONLY if it explicitly lists or links to the submitted website/domain ${domain},
+so that the company identity is independently matched. Do not assume that a similar name is a match.
+You may use other credible public sources to corroborate claims, but never use an unrelated company.
+If a verified matching profile cannot be found, or reliable business details are insufficient,
+return exactly RESEARCH_UNAVAILABLE. Do not infer details from the company name.
+Otherwise return a factual briefing (maximum 450 words) describing confirmed services,
+audiences and positioning, clearly separating company claims from independent evidence.
+Include the verified matching domain (${domain}) and full HTTPS URLs for the sources used.
+Do not write a diagnostic report, and do not present unsupported claims as fact.`;
+  const job = await openaiRequest(apiKey, {
+    model: Netlify.env.get("OPENAI_MODEL") || "gpt-5.1",
+    background: true,
+    metadata: { brandpulse_research: "verified_fallback" },
+    tools: [{ type: "web_search", search_context_size: "medium" }],
+    input: instruction
+  });
+  if (!job.id) throw new Error("Research fallback did not return a job ID.");
+  return jsonResponse(202, {status:"processing", stage:"research", response_id:job.id});
+}
+
 export default async (req) => {
 
   if (req.method !== "POST") {
@@ -723,9 +749,24 @@ RESEARCH_UNAVAILABLE and do not invent a profile. Do not write a diagnostic repo
         return jsonResponse(202, {status: "processing", stage: body.stage === "research" ? "research" : "writing", response_id: id});
       }
       if (body.stage === "research") {
-        const briefing = responseOutputText(data);
+        const briefing = responseOutputText(data).trim();
+        const isFallback = data.metadata?.brandpulse_research === "verified_fallback";
         if (!briefing || briefing.includes("RESEARCH_UNAVAILABLE")) {
-          return jsonResponse(422, {error:"We couldn't verify enough company information from this website to produce a researched report."});
+          if (!isFallback) return await startVerifiedResearchFallback(apiKey, client);
+          return jsonResponse(422, {error:"We couldn't verify enough company information from the website or a matching public business profile to produce a researched report."});
+        }
+        // A fallback must identify the submitted domain and cite a separate
+        // source (not just repeat the inaccessible company website URL).
+        if (isFallback) {
+          const domain = normaliseDomain(client.website).toLowerCase();
+          const sourceUrls = briefing.match(/https:\/\/[^\s)]+/gi) || [];
+          const externalSource = sourceUrls.some(url => {
+            try { return normaliseDomain(url).toLowerCase() !== domain; }
+            catch { return false; }
+          });
+          if (!briefing.toLowerCase().includes(domain) || !externalSource) {
+            return jsonResponse(422, {error:"The alternative research could not verify the company identity and sources."});
+          }
         }
         return jsonResponse(200,{status:"research_complete",stage:"research",research:briefing.slice(0,5500)});
       }
